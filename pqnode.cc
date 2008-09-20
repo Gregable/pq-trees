@@ -178,7 +178,8 @@ PQNode::~PQNode() {
 
 // FindLeaves, FindFrontier, Reset, and Print are very similar recursive
 // functions.  Each is a depth-first walk of the entire tree looking for data
-// at the leaves.  Could probably be implemented better using function pointers.
+// at the leaves.  
+// TODO: Could probably be implemented better using function pointers.
 void PQNode::FindLeaves(map<int, PQNode*> &leafAddress) {
   if (type == leaf) {
     leafAddress[leaf_value] = this;

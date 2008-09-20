@@ -12,7 +12,7 @@ Booth and George S. Lueker in the Journal of Computer and System Sciences 13,
 #include <map>
 #include <iostream>
 #include "pqnode.h"
-#include "setTemplates.h"
+#include "set_methods.h"
 using namespace std;
 
 #ifndef PQTREE_H
@@ -1319,10 +1319,10 @@ list<int> PQTree::reducedFrontier() {
   set<int> allContained;
   for (list<set<int> >::iterator j = reductions.begin();
       j != reductions.end(); j++) {
-      allContained = setunion(allContained, *j);
+      allContained = SetMethods::SetUnion(allContained, *j);
   }
   for (list<int>::iterator j = inter.begin(); j != inter.end(); j++) {
-    if (setfind(allContained, *j))
+    if (SetMethods::SetFind(allContained, *j))
       out.push_back(*j);
   }
   return out;
@@ -1336,7 +1336,7 @@ set<int> PQTree::getContained() {
   set<int> out;
   for (list<set<int> >::iterator i = reductions.begin();
       i!=reductions.end(); i++) {
-    out=setunion(out,*i);
+    out = SetMethods::SetUnion(out,*i);
   }
   return out;
 }
