@@ -1,0 +1,6 @@
+A C++ implementation of Booth & Lueker's PQ-Tree algorithm.
+
+K.S. Booth, G.S. Lueker, Testing for the consecutive ones property, interval
+graphs, and graph planarity using PQ-tree algorithms, J> Comput. Systems Sci.
+13(3) (1976) 335-379.
+
