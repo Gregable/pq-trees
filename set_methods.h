@@ -1,5 +1,5 @@
 /*
- * A group of templates that define commonly used operations on stl sets.
+ * Methods that define commonly used operations on stl sets.
  */
  
 #include <algorithm>

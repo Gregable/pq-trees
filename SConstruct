@@ -11,4 +11,4 @@ Run: 'scons -c' to clean up non-src files.
 """)
 
 env = Environment()
-env.Program('pqtest', ['pqnode.cc', 'pqtest.cc'])
+env.Program('pqtest', ['pqnode.cc', 'pqtest.cc', 'pqtree.cc'])
