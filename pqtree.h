@@ -109,7 +109,7 @@ class PQTree {
   bool reduce(set<int> S);
   bool reduceAll(list<set<int> > L);
   
-  //returns 1 possible frontier, or ordering preserving the reductions
+  // Returns 1 possible frontier, or ordering preserving the reductions
   list<int> frontier();
   
   // Assignment operator
@@ -119,14 +119,14 @@ class PQTree {
   void CopyFrom(const PQTree& to_copy);
   
   
-  //returns a frontier not including leaves that were not a part of any
-  //reduction
+  // Returns a frontier not including leaves that were not a part of any
+  // reduction
   list<int> reducedFrontier();
   
-  //returns the reductions that have been performed on this tree
+  // Returns the reductions that have been performed on this tree.
   list<set<int> > getReductions();
   
-  //returns the set of all elements on which a reduction was performed with
+  // Returns the set of all elements on which a reduction was performed.
   set<int> getContained();
 };
 
