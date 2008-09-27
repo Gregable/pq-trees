@@ -193,19 +193,18 @@ bool PQTree::template_Q3(PQNode* candidate_node) {
     }
   }
 
-  for (set<PQNode *>::iterator j = candidate_node->partial_children_.begin();
+  for (set<PQNode*>::iterator j = candidate_node->partial_children_.begin();
        j != candidate_node->partial_children_.end(); j++) {
     PQNode* to_merge = *j;
     PQNode* empty_child = to_merge->EndmostChildWithLabel(PQNode::empty);
     PQNode* full_child = to_merge->EndmostChildWithLabel(PQNode::full);
-    bool has_only_one_sibling = (to_merge->immediate_siblings_.size() == 1);
-    
+  
     // TODO: What exactly is CS's role?  How can it be better named?
     PQNode* CS;  
     // Handle the sides where the child has immediate siblings.
     for (set<PQNode *>::iterator i = to_merge->immediate_siblings_.begin();
-	 i != to_merge->immediate_siblings_.end(); i++) {
-      PQNode *sibling = *i;
+	 i != to_merge->immediate_siblings_.end(); ++i) {
+      PQNode* sibling = *i;
       if (sibling->label_ == PQNode::empty) {
 	sibling->ReplaceImmediateSibling(to_merge, empty_child);
         CS = full_child;
@@ -217,6 +216,7 @@ bool PQTree::template_Q3(PQNode* candidate_node) {
     if (candidate_node->pseudonode_)
       CS = empty_child;
     // Handle the case where |to_merge| had only one immediate sibling.
+    bool has_only_one_sibling = (to_merge->immediate_siblings_.size() == 1);
     if (has_only_one_sibling || candidate_node->pseudonode_) {
       CS->parent_ = candidate_node;
       candidate_node->ReplaceEndmostChild(to_merge, CS);
@@ -763,17 +763,19 @@ bool PQTree::template_P6(PQNode* X)
 // It processes the pertinent subtree of the PQ-Tree to determine the mark
 // of every node in that subtree.  The pseudonode, if created, is returned so
 // that it can be deleted at the end of the reduce step.
-bool PQTree::bubble(set<int> S) {
+bool PQTree::bubble(set<int> reduction_set) {
   //initialize variables
   queue<PQNode*> q;
   block_count_ = 0;
   blocked_nodes_ = 0;
   off_the_top_ = 0;
   
-  set<PQNode* > blocked_list;  // Stores blocked guys that aren't PQNode::unblocked
+  // Stores nodes that aren't PQNode::unblocked
+  set<PQNode*> blocked_list;  
 
   // Insert the set's leaves into the queue
-  for (set<int>::iterator i = S.begin();i != S.end(); i++) {
+  for (set<int>::iterator i = reduction_set.begin();
+       i != reduction_set.end(); ++i) {
     PQNode *temp = leaf_address_[*i];
     if (temp == NULL)  // Make sure we have this in our leaves already
       return false;
@@ -781,7 +783,7 @@ bool PQTree::bubble(set<int> S) {
   }
 
   while(q.size() + block_count_ + off_the_top_ > 1) {
-    //check to see if there are still guys in the queue
+    // Check to see if there are still nodes in the queue
     if (q.empty())
       return false;
     
@@ -860,15 +862,15 @@ bool PQTree::bubble(set<int> S) {
     int side = 0;
     pseudonode_->pertinent_child_count = 0;
     
-    //figure out which nodes are still blocked
-    //and which of those are the endmost children
-    for (set<PQNode*>::iterator i=blocked_list.begin();
-	i != blocked_list.end(); i++)
+    // Figure out which nodes are still blocked and which of those are the
+    // endmost children
+    for (set<PQNode*>::iterator i = blocked_list.begin();
+	i != blocked_list.end(); ++i)
       if ((*i)->mark_ == PQNode::blocked) {
         pseudonode_->pertinent_child_count++;
         pseudonode_->pertinent_leaf_count += (*i)->pertinent_leaf_count;
-        int count=0;  //count number of immediate siblings
-        int loop=0;
+        int count = 0;  //count number of immediate siblings
+        int loop = 0;
         for (set<PQNode*>::iterator j = (*i)->immediate_siblings_.begin();
 	    j != (*i)->immediate_siblings_.end() && loop < 2;
 	    j++) {
@@ -891,10 +893,11 @@ bool PQTree::bubble(set<int> S) {
   return true;
 }  
 
-bool PQTree::reduceStep(set<int> S) {
+bool PQTree::reduceStep(set<int> reduction_set) {
   // Build a queue with all the pertinent leaves in it
   queue<PQNode*> q;
-  for (set<int>::iterator i = S.begin(); i != S.end(); i++) {
+  for (set<int>::iterator i = reduction_set.begin();
+       i != reduction_set.end(); i++) {
     PQNode* X = leaf_address_[*i];
     if (X == NULL)
       return false;
@@ -908,7 +911,7 @@ bool PQTree::reduceStep(set<int> S) {
     q.pop();
 
     // if X is not the root of the reduction subtree
-    if (X->pertinent_leaf_count < S.size()) {
+    if (X->pertinent_leaf_count < reduction_set.size()) {
       // Update X's parent Y
       PQNode* Y = X->parent_;
       Y->pertinent_leaf_count += X->pertinent_leaf_count;
@@ -1028,18 +1031,18 @@ bool PQTree::safeReduceAll(list<set<int> > L) {
 }  
 
   
-bool PQTree::reduce(set<int> S) {
-  if (S.size() < 2) {
-    reductions_.push_back(S);
+bool PQTree::reduce(set<int> reduction_set) {
+  if (reduction_set.size() < 2) {
+    reductions_.push_back(reduction_set);
     return true;
   }
   if (invalid_)
     return false;
-  if (!bubble(S)) {
+  if (!bubble(reduction_set)) {
     invalid_ = true;
     return false;
   }
-  if (!reduceStep(S)) {
+  if (!reduceStep(reduction_set)) {
     invalid_ = true;
     return false;
   }
@@ -1056,7 +1059,7 @@ bool PQTree::reduce(set<int> S) {
   root_->Reset();
   
   // Store the reduction set for later lookup
-  reductions_.push_back(S);
+  reductions_.push_back(reduction_set);
   return true;
 }
 

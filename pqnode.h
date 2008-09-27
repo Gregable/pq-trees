@@ -174,6 +174,8 @@ class QNodeChildrenIterator {
   bool IsDone();
 
  private:
+  // Next() helper method to deal with pseudonodes.
+  void NextPseudoNodeSibling();
   PQNode* parent_;
   PQNode* current_;
   PQNode* next_;

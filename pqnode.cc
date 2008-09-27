@@ -207,7 +207,6 @@ void PQNode::ReplaceEndmostChild(PQNode* old_child, PQNode* new_child) {
 
 void PQNode::ReplaceImmediateSibling(PQNode* old_child, PQNode* new_child) {
   immediate_siblings_.erase(old_child);
-  old_child->immediate_siblings_.erase(this);
 
   immediate_siblings_.insert(new_child);
   new_child->immediate_siblings_.insert(this);
@@ -338,25 +337,36 @@ PQNode* QNodeChildrenIterator::Current() {
   return current_;
 }
 
+void QNodeChildrenIterator::NextPseudoNodeSibling() {
+  // This should only be called from the first Next() call after Reset() and
+  // only if the first subnode has two immediate siblings.  We want to advance
+  // our iterator to the non-empty sibling of |current_|
+  prev_ = current_;
+  current_ = current_->ImmediateSiblingWithLabel(PQNode::full);
+  if (!current_)
+    current_ = current_->ImmediateSiblingWithLabel(PQNode::partial);
+}
+
 void QNodeChildrenIterator::Next() {
   // If the first child has 2 immediate siblings, then we are on
   // the edge of a pseudonode.
   if (IsDone())
     return;
-  prev_ = current_;
-  if (prev_ == NULL && 2 == current_->immediate_siblings_.size() &&
-      (*current_->immediate_siblings_.begin())->label_ == PQNode::empty) {
-      current_ = *(++current_->immediate_siblings_.begin());
+  if (prev_ == NULL && 2 == current_->immediate_siblings_.size()) {
+    NextPseudoNodeSibling();
   } else {
+    prev_ = current_;
     current_ = next_;
   }
 
-  if (1 == current_->immediate_siblings_.size()) {
-    next_ = NULL;
-  } else if (*current_->immediate_siblings_.begin() != prev_) {
-    next_ = *current_->immediate_siblings_.begin();
-  } else {
-    next_ = *(++current_->immediate_siblings_.begin());
+  if (current_) {
+    if (1 == current_->immediate_siblings_.size()) {
+      next_ = NULL;
+    } else if (*current_->immediate_siblings_.begin() != prev_) {
+      next_ = *current_->immediate_siblings_.begin();
+    } else {
+      next_ = *(++current_->immediate_siblings_.begin());
+    }
   }
 }
 
