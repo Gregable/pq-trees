@@ -242,6 +242,11 @@ void PQNode::MoveFullChildren(PQNode* new_node) {
   }
 }
 
+void PQNode::ReplaceCircularLink(PQNode* old_child, PQNode* new_child) {
+  circular_link_.remove(old_child);
+  circular_link_.push_back(new_child);
+}
+
 
 // FindLeaves, FindFrontier, Reset, and Print are very similar recursive
 // functions.  Each is a depth-first walk of the entire tree looking for data

@@ -41,6 +41,9 @@ class PQNode {
   // Moves the full children of this node to children of |new_node|.
   void MoveFullChildren(PQNode* new_node);
   
+  // Replaces the circular_link pointer of |old_child| with |new_child|.
+  void ReplaceCircularLink(PQNode* old_child, PQNode* new_child);
+  
   /***** Used by Q Nodes only *****/
   
   // A set containing the two endmost children of a Q-node

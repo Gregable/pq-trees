@@ -3,48 +3,48 @@
 #include <assert.h>
 
 PQTree::PQTree(const PQTree& to_copy) {
-  CopyFrom(to_copy); 
+  CopyFrom(to_copy);
 }
-  
+
 PQTree& PQTree::operator=(const PQTree& to_copy) {
   if (&to_copy != this)
-    CopyFrom(to_copy); 
+    CopyFrom(to_copy);
   return *this;
 }
 
 void PQTree::CopyFrom(const PQTree& to_copy) {
-  root_		 = new PQNode(*to_copy.root_);
+  root_                 = new PQNode(*to_copy.root_);
   block_count_   = to_copy.block_count_;
   blocked_nodes_ = to_copy.blocked_nodes_;
-  invalid_	 = to_copy.invalid_;
+  invalid_         = to_copy.invalid_;
   off_the_top_   = to_copy.off_the_top_;
-  pseudonode_	 = NULL;
-  reductions_	 = to_copy.reductions_;
+  pseudonode_         = NULL;
+  reductions_         = to_copy.reductions_;
 
   leaf_address_.clear();
-  root_->FindLeaves(leaf_address_);  
+  root_->FindLeaves(leaf_address_);
 }
-  
-int PQTree::UnblockSiblings(PQNode* X, PQNode* parent, PQNode* last) {
+
+int PQTree::UnblockSiblings(PQNode* candidate_node, PQNode* parent, PQNode* last) {
   int unblocked_count = 0;
-  if (X->mark_ == PQNode::blocked) {
+  if (candidate_node->mark_ == PQNode::blocked) {
     // Unblock the current sibling and set it's parent to |parent|.
     unblocked_count++;
-    X->mark_ = PQNode::unblocked;
-    X->parent_ = parent;
+    candidate_node->mark_ = PQNode::unblocked;
+    candidate_node->parent_ = parent;
 
     // Unblock adjacent siblings recursively
-    for (set<PQNode *>::iterator i = X->immediate_siblings_.begin();
-	i != X->immediate_siblings_.end(); i++) {
+    for (set<PQNode *>::iterator i = candidate_node->immediate_siblings_.begin();
+        i != candidate_node->immediate_siblings_.end(); i++) {
       if (*i != last)
-        unblocked_count += UnblockSiblings(*i, parent, X);
+        unblocked_count += UnblockSiblings(*i, parent, candidate_node);
     }
   }
   return unblocked_count;
 }
 
 // All the different templates for matching a reduce are below.  The template
-// has a letter describing which type of node it refers to and a number 
+// has a letter describing which type of node it refers to and a number
 // indicating the index of the template for that letter.  These are the same
 // indices found in the Booth & Lueker paper.
 //
@@ -60,12 +60,12 @@ bool PQTree::TemplateL1(PQNode* candidate_node) {
   // Check against the pattern: must be a leaf
   if (candidate_node->type_ != PQNode::leaf)
     return false;
- 
-  candidate_node->LabelAsFull(); 
+
+  candidate_node->LabelAsFull();
   return true;
 }
 
-bool PQTree::TemplateQ1(PQNode* candidate_node) {  
+bool PQTree::TemplateQ1(PQNode* candidate_node) {
   if (candidate_node->type_ != PQNode::qnode)
     return false;
 
@@ -76,18 +76,18 @@ bool PQTree::TemplateQ1(PQNode* candidate_node) {
     if (it.Current()->label_ != PQNode::full)
       return false;
   }
-  
-  candidate_node->LabelAsFull(); 
+
+  candidate_node->LabelAsFull();
   return true;
 }
-  
+
 bool PQTree::TemplateQ2(PQNode* candidate_node) {
   // Check against the pattern
   if (candidate_node->type_ != PQNode::qnode ||
       candidate_node->pseudonode_ ||
-      candidate_node->partial_children_.size() > 1) 
+      candidate_node->partial_children_.size() > 1)
     return false;
-   
+
   // Q2 must either have exactly 1 full end child or >0 partial end child.
   if (!candidate_node->full_children_.empty()) {
     int num_full_end_children = 0;
@@ -102,7 +102,7 @@ bool PQTree::TemplateQ2(PQNode* candidate_node) {
     // If not exactly 1 full endmost children, our pattern does not match.
     if (num_full_end_children != 1)
       return false;
-  
+
     // All the full children must be consecutive.
     PQNode* full_child = full_end_child;
     QNodeChildrenIterator iter(candidate_node, /*begin_side=*/full_end_child);
@@ -115,24 +115,24 @@ bool PQTree::TemplateQ2(PQNode* candidate_node) {
     // If there is a partial child, it must also be consecutive with the full
     // children.
     if (iter.Current()->label_ != PQNode::partial &&
-	candidate_node->partial_children_.size() == 1)
+        candidate_node->partial_children_.size() == 1)
       return false;
   } else {
     // Or that the partial child is on the side
     if (!candidate_node->EndmostChildWithLabel(PQNode::partial))
       return false;
   }
-  
+
   // Pattern matches.  If exists, merge partial child into the candidate_node.
   if (candidate_node->partial_children_.size() > 0) {
     PQNode* to_merge = *candidate_node->partial_children_.begin();
 
     PQNode* full_child = to_merge->EndmostChildWithLabel(PQNode::full);
     PQNode* empty_child = to_merge->EndmostChildWithLabel(PQNode::empty);
-    
+
     PQNode* full_sibling = to_merge->ImmediateSiblingWithLabel(PQNode::full);
     PQNode* empty_sibling = to_merge->ImmediateSiblingWithLabel(PQNode::empty);
-    
+
     // If |partial_child| has a full immediate sibling
     if (full_sibling) {
       full_sibling->ReplaceImmediateSibling(to_merge, full_child);
@@ -148,11 +148,11 @@ bool PQTree::TemplateQ2(PQNode* candidate_node) {
       candidate_node->ReplaceEndmostChild(to_merge, empty_child);
       empty_child->parent_ = candidate_node;
     }
-  
+
     // We no longer need |to_merge|, but we dont want the recursive destructor
     // to kill the children either, so we first null out it's child pointers.
-    to_merge->endmost_children_[0] = NULL;  
-    to_merge->endmost_children_[0] = NULL;  
+    to_merge->endmost_children_[0] = NULL;
+    to_merge->endmost_children_[0] = NULL;
     delete to_merge;
   }
   candidate_node->label_ = PQNode::partial;
@@ -161,7 +161,7 @@ bool PQTree::TemplateQ2(PQNode* candidate_node) {
   return true;
 }
 
-bool PQTree::TemplateQ3(PQNode* candidate_node) {  
+bool PQTree::TemplateQ3(PQNode* candidate_node) {
   // Check against the pattern
   if (candidate_node->type_ != PQNode::qnode ||
       candidate_node->partial_children_.size() > 2)
@@ -179,16 +179,16 @@ bool PQTree::TemplateQ3(PQNode* candidate_node) {
   for (QNodeChildrenIterator it(candidate_node); !it.IsDone(); it.Next()) {
     if (it.Current()->label_ == PQNode::full) {
       if (run_finished)
-	return false;
+        return false;
       run_started = true;
     } else if (it.Current()->label_ == PQNode::empty) {
       if (run_started)
-	run_finished = true;
+        run_finished = true;
     } else if (it.Current()->label_ == PQNode::partial) {
       if (run_finished)
-	return false;
+        return false;
       if (run_started)
-	run_finished = true;
+        run_finished = true;
       run_started = true;
     }
   }
@@ -199,18 +199,18 @@ bool PQTree::TemplateQ3(PQNode* candidate_node) {
     PQNode* to_merge = *j;
     PQNode* empty_child = to_merge->EndmostChildWithLabel(PQNode::empty);
     PQNode* full_child = to_merge->EndmostChildWithLabel(PQNode::full);
-  
+
     // TODO: What exactly is CS's role?  How can it be better named?
-    PQNode* CS;  
+    PQNode* CS;
     // Handle the sides where the child has immediate siblings.
     for (set<PQNode *>::iterator i = to_merge->immediate_siblings_.begin();
-	 i != to_merge->immediate_siblings_.end(); ++i) {
+         i != to_merge->immediate_siblings_.end(); ++i) {
       PQNode* sibling = *i;
       if (sibling->label_ == PQNode::empty) {
-	sibling->ReplaceImmediateSibling(to_merge, empty_child);
+        sibling->ReplaceImmediateSibling(to_merge, empty_child);
         CS = full_child;
       } else {  // |sibling| is either full or partial, we dont care which.
-	sibling->ReplaceImmediateSibling(to_merge, full_child);
+        sibling->ReplaceImmediateSibling(to_merge, full_child);
         CS = empty_child;
       }
     }
@@ -222,11 +222,11 @@ bool PQTree::TemplateQ3(PQNode* candidate_node) {
       CS->parent_ = candidate_node;
       candidate_node->ReplaceEndmostChild(to_merge, CS);
     }
-    
+
     // We no longer need |to_merge|, but we dont want the recursive destructor
     // to kill the children either, so we first null out it's child pointers.
-    to_merge->endmost_children_[0] = NULL;  
-    to_merge->endmost_children_[0] = NULL;  
+    to_merge->endmost_children_[0] = NULL;
+    to_merge->endmost_children_[0] = NULL;
     delete to_merge;
   }
   return true;
@@ -254,7 +254,7 @@ bool PQTree::TemplateP2(PQNode* candidate_node) {
   if (candidate_node->type_ != PQNode::pnode ||
       candidate_node->partial_children_.size() != 0)
     return false;
-    
+
   // Move candidate_node's full children into their own P-node
   if (candidate_node->full_children_.size() >= 2) {
     PQNode* new_pnode = new PQNode;
@@ -265,7 +265,7 @@ bool PQTree::TemplateP2(PQNode* candidate_node) {
   }
   // Mark the root partial
   candidate_node->label_ = PQNode::partial;
-    
+
   return true;
 }
 bool PQTree::TemplateP3(PQNode* candidate_node) {
@@ -273,7 +273,7 @@ bool PQTree::TemplateP3(PQNode* candidate_node) {
   if (candidate_node->type_ != PQNode::pnode ||
       !candidate_node->partial_children_.empty())
     return false;
-  
+
   // Set up the p_node on the full child side.
   PQNode* full_child;
   if (candidate_node->full_children_.size() == 1) {
@@ -285,7 +285,7 @@ bool PQTree::TemplateP3(PQNode* candidate_node) {
     full_child->label_ = PQNode::full;
     candidate_node->MoveFullChildren(full_child);
   }
-  
+
   PQNode* new_qnode = new PQNode;
   new_qnode->type_ = PQNode::qnode;
   candidate_node->parent_->ReplacePartialChild(candidate_node, new_qnode);
@@ -314,9 +314,9 @@ bool PQTree::TemplateP3(PQNode* candidate_node) {
   empty_child->immediate_siblings_.insert(full_child);
   full_child->immediate_siblings_.clear();
   full_child->immediate_siblings_.insert(empty_child);
-  
+
   new_qnode->label_ = PQNode::partial;
-  
+
   return true;
 }
 
@@ -324,7 +324,7 @@ bool PQTree::TemplateP4(PQNode* candidate_node) {
   if (candidate_node->type_ != PQNode::pnode ||
       candidate_node->partial_children_.size() != 1)
     return false;
-  
+
   PQNode* partial_qnode = *candidate_node->partial_children_.begin();
   assert(partial_qnode->type_ == PQNode::qnode);
   PQNode* empty_child = partial_qnode->EndmostChildWithLabel(PQNode::empty);
@@ -333,44 +333,43 @@ bool PQTree::TemplateP4(PQNode* candidate_node) {
 
   if (!empty_child || !full_child)
     return false;
-  
+
   // Move the full children of |candidate_node| to children of |partial_qnode|.
   if (!candidate_node->full_children_.empty()) {
     PQNode *full_children_root;
     if (candidate_node->full_children_.size() == 1) {
-      full_children_root = *(candidate_node->full_children_.begin());
+      full_children_root = *candidate_node->full_children_.begin();
       candidate_node->circular_link_.remove(full_children_root);
     } else {
       full_children_root = new PQNode;
       full_children_root->type_ = PQNode::pnode;
       full_children_root->label_ = PQNode::full;
-
       candidate_node->MoveFullChildren(full_children_root);
     }
     full_children_root->parent_ = partial_qnode;
     partial_qnode->ReplaceEndmostChild(full_child, full_children_root);
     partial_qnode->full_children_.insert(full_children_root);
-    full_child->immediate_siblings_.insert(full_children_root);      
+    full_child->immediate_siblings_.insert(full_children_root);
     full_children_root->immediate_siblings_.insert(full_child);
   }
 
   // If |candidate_node| now only has one child, get rid of |candidate_node|.
   if (candidate_node->circular_link_.size() == 1) {
-    PQNode* theParent = candidate_node->parent_;
+    PQNode* the_parent = candidate_node->parent_;
     partial_qnode->parent_ = candidate_node->parent_;
-    if (theParent != NULL) {  // Parent is root of tree
+    if (the_parent != NULL) {  // Parent is root of tree
       if (candidate_node->immediate_siblings_.empty()) {  // Is p-node?
-        theParent->circular_link_.remove(candidate_node);  
-        theParent->circular_link_.push_back(partial_qnode);
+        the_parent->circular_link_.remove(candidate_node);
+        the_parent->circular_link_.push_back(partial_qnode);
       } else { // Is Q-node?
-        // Update the immediate siblings list by removing X and adding Y
-        for (set<PQNode*>::iterator i = 
-	         candidate_node->immediate_siblings_.begin();
-	     i != candidate_node->immediate_siblings_.end(); ++i) {
-	  (*i)->ReplaceImmediateSibling(candidate_node, partial_qnode);
+        // Update the immediate siblings list by removing candidate_node and adding partial_qnode
+        for (set<PQNode*>::iterator i =
+                 candidate_node->immediate_siblings_.begin();
+             i != candidate_node->immediate_siblings_.end(); ++i) {
+          (*i)->ReplaceImmediateSibling(candidate_node, partial_qnode);
         }
         if (candidate_node->immediate_siblings_.size() == 1)
-	  theParent->ReplaceEndmostChild(candidate_node, partial_qnode);
+          the_parent->ReplaceEndmostChild(candidate_node, partial_qnode);
       }
     } else {
       root_ = partial_qnode;
@@ -379,309 +378,167 @@ bool PQTree::TemplateP4(PQNode* candidate_node) {
   return true;
 }
 
-bool PQTree::TemplateP5(PQNode* X) {  
+bool PQTree::TemplateP5(PQNode* candidate_node) {
   //check against the pattern
-  if (X->type_ != PQNode::pnode)
+  if (candidate_node->type_ != PQNode::pnode ||
+      candidate_node->partial_children_.size() != 1)
     return false;
-  if (X->partial_children_.size() != 1)
-    return false;
-  
-  //Y is the partial Q-node
-  PQNode* Y = *X->partial_children_.begin();
-  PQNode* EC = NULL;
-  PQNode* FC = NULL;
-  PQNode* ES = NULL;  //empty/full child/sibling of Y
 
-  //find the empty and full endmost child of Y
-  if (Y->endmost_children_[0]->label_ == PQNode::empty) {
-    EC = Y->endmost_children_[0];
-    FC = Y->endmost_children_[1];
+  PQNode* partial_qnode = *candidate_node->partial_children_.begin();
+  assert(partial_qnode->type_ == PQNode::qnode);
+  PQNode* empty_child = partial_qnode->EndmostChildWithLabel(PQNode::empty);
+  PQNode* full_child = partial_qnode->EndmostChildWithLabel(PQNode::full);
+  PQNode* empty_sibling = candidate_node->CircularChildWithLabel(PQNode::empty);
+
+  if (!empty_child || !full_child)
+    return false;
+
+  // |partial_qnode| will become the root of the pertinent subtree after the
+  // replacement.
+  PQNode* the_parent = candidate_node->parent_;
+  partial_qnode->parent_ = candidate_node->parent_;
+  partial_qnode->pertinent_leaf_count = candidate_node->pertinent_leaf_count;
+  partial_qnode->label_ = PQNode::partial;
+  the_parent->partial_children_.insert(partial_qnode);
+  // remove partial_qnode from candidate_node's list of children
+  candidate_node->circular_link_.remove(partial_qnode);
+  candidate_node->partial_children_.erase(partial_qnode);
+
+  if (candidate_node->immediate_siblings_.size() == 0) {
+    the_parent->ReplaceCircularLink(candidate_node, partial_qnode);
   } else {
-    EC = Y->endmost_children_[1];
-    FC = Y->endmost_children_[0];
+    for (set<PQNode *>::iterator i=candidate_node->immediate_siblings_.begin();
+         i!=candidate_node->immediate_siblings_.end(); i++)
+      (*i)->ReplaceImmediateSibling(candidate_node, partial_qnode);
+    the_parent->ReplaceEndmostChild(candidate_node, partial_qnode);
   }
 
-  //check that we are indeed matching the pattern
-  if (EC->label_ != PQNode::empty || FC->label_  == PQNode::empty)
-    return false;
-    
-  //if Y has an empty sibling, set ES to be an empty sibling of Y
-  for (list<PQNode *>::iterator i = X->circular_link_.begin();
-       i != X->circular_link_.end(); i++) {
-    if ((*i)->label_ == PQNode::empty) {
-      ES = *i;
-      break;
+  // Move the full children of |candidate_node| to children of |partial_qnode|.
+  if (candidate_node->full_children_.size() > 0) {
+    PQNode *full_children_root=NULL;
+    if (candidate_node->full_children_.size() == 1) {
+      full_children_root = *candidate_node->full_children_.begin();
+      candidate_node->circular_link_.remove(full_children_root);
+    } else {
+      full_children_root = new PQNode;
+      full_children_root->type_ = PQNode::pnode;
+      full_children_root->label_ = PQNode::full;
+      candidate_node->MoveFullChildren(full_children_root);
     }
+    candidate_node->full_children_.clear();
+
+    full_children_root->parent_ = partial_qnode;
+    full_child->immediate_siblings_.insert(full_children_root);
+    full_children_root->immediate_siblings_.insert(full_child);
+    partial_qnode->ReplaceEndmostChild(full_child, full_children_root);
   }
 
-  //Y will be the root of the pertinent subtree after the replacement
-  PQNode* theParent = X->parent_;
-  Y->parent_ = X->parent_;
-  Y->pertinent_leaf_count = X->pertinent_leaf_count;
-  Y->label_ = PQNode::partial;
-  //add Y to it's s list of partial children
-  theParent->partial_children_.insert(Y);
-  //remove Y from X's list of children
-  X->circular_link_.remove(Y);
-  X->partial_children_.erase(Y);
-  
-  // Update to handle the switch.
-  if (X->immediate_siblings_.size() == 0) {  // Parent is a P-node
-    theParent->circular_link_.remove(X);
-    theParent->circular_link_.push_back(Y);
-  } else {   // Parent is a Q-node
-    //update the immediate siblings list by removing X and adding Y
-    for (set<PQNode *>::iterator i=X->immediate_siblings_.begin();
-	 i!=X->immediate_siblings_.end(); i++) {
-      (*i)->immediate_siblings_.erase(X);
-      (*i)->immediate_siblings_.insert(Y);
-      Y->immediate_siblings_.insert(*i);
+  // If candidate_node still has some empty children, insert them
+  if (candidate_node->ChildCount()) {
+    PQNode *empty_children_root = NULL;
+    if (candidate_node->ChildCount() == 1) {
+      empty_children_root = empty_sibling;
+    } else {
+      empty_children_root = candidate_node;
+      empty_children_root->label_ = PQNode::empty;
+      empty_children_root->immediate_siblings_.clear();
     }
-    if (theParent->endmost_children_[0]==X)
-      theParent->endmost_children_[0]=Y;
-    if (theParent->endmost_children_[1]==X)
-      theParent->endmost_children_[1]=Y;
+    empty_children_root->parent_ = partial_qnode;
+    empty_child->immediate_siblings_.insert(empty_children_root);
+    empty_children_root->immediate_siblings_.insert(empty_child);
+    partial_qnode->ReplaceEndmostChild(empty_child, empty_children_root);
   }
-  
-  //move the full children of X to be children of Y
-  if (X->full_children_.size()>0)
-  {
-    PQNode *ZF=NULL;
-    //only 1 full child
-    if (X->full_children_.size()==1)
-    {
-      ZF=*(X->full_children_.begin());
-      X->circular_link_.remove(ZF);
-    }
-    //multiple full children - must be placed in a P-node
-    else
-    {
-      //create ZF to be a new p-node
-      ZF = new PQNode;
-      ZF->type_ = PQNode::pnode;
-      ZF->label_ = PQNode::full;
-
-      // For all the full nodes in X, set their to be ZF.
-      for (set<PQNode *>::iterator W=X->full_children_.begin();W!=X->full_children_.end();W++)
-      {
-        (*W)->parent_ = ZF;
-        X->circular_link_.remove(*W);
-        ZF->circular_link_.push_back(*W);
-      }
-    }
-    X->full_children_.clear();
-    
-    //more updates
-    ZF->parent_ = Y;
-    FC->immediate_siblings_.insert(ZF);      
-    ZF->immediate_siblings_.insert(FC);
-    if (Y->endmost_children_[0]==FC)
-                  Y->endmost_children_[0]=ZF;
-                else if (Y->endmost_children_[1]==FC)
-                        Y->endmost_children_[1]=ZF;      
+  if (candidate_node->ChildCount() < 2) {
+    // We want to delete candidate_node, but not it's children.
+    candidate_node->circular_link_.clear();
+    delete candidate_node;
   }
-
-  //if X still has some empty children, insert them  
-  if (X->ChildCount()>0)
-  {
-    PQNode *ZE = NULL;
-    if (X->ChildCount() == 1)
-      ZE = ES;
-    else
-    {
-      ZE = X;
-      ZE->label_ = PQNode::empty;
-      ZE->immediate_siblings_.clear();
-    }
-    ZE->parent_ = Y;
-    EC->immediate_siblings_.insert(ZE);
-    ZE->immediate_siblings_.insert(EC);
-    if (Y->endmost_children_[0] == EC)
-      Y->endmost_children_[0] = ZE;
-    if (Y->endmost_children_[1] == EC)
-      Y->endmost_children_[1] = ZE;
-  }
-  if (X->ChildCount()<2)
-  {
-    //we want to delete X, but not it's children
-    X->circular_link_.clear();
-    delete X;    
-  }
-  
 
   return true;
 }
 
-bool PQTree::TemplateP6(PQNode* X)
+bool PQTree::TemplateP6(PQNode* candidate_node)
 {
-  //check against the pattern
-  if (X->type_ != PQNode::pnode)
-    return false;
-  if (X->partial_children_.size()!=2)
+  if (candidate_node->type_ != PQNode::pnode ||
+      candidate_node->partial_children_.size() != 2)
     return false;
 
-  
-  //Y is the first partial Q-node from which we shall build
-  PQNode* Y=*X->partial_children_.begin();
-  PQNode* Z=*(++(X->partial_children_.begin()));
-  PQNode* EC=NULL;
-  PQNode* FC=NULL;  //empty/full child/sibling of Y
+  // TODO: Convert these to an array so we don't have 2 of everything.
+  PQNode* partial_qnode1 = *candidate_node->partial_children_.begin();
+  PQNode* partial_qnode2 = *(++(candidate_node->partial_children_.begin()));
 
-  PQNode *ZF=NULL;  //the child of Y created to hold full X's children
-
-  //find the empty and full endmost child of Y
-  if (Y->endmost_children_[0]->label_ == PQNode::empty)
-  {
-    EC = Y->endmost_children_[0];
-    FC = Y->endmost_children_[1];
-  }
-  else
-  {
-    EC = Y->endmost_children_[1];
-    FC = Y->endmost_children_[0];
-  }
-  // check that we are indeed matching the pattern
-  if (EC->label_ != PQNode::empty || FC->label_ == PQNode::empty)
+  PQNode* empty_child1 = partial_qnode1->EndmostChildWithLabel(PQNode::empty);
+  PQNode* full_child1 = partial_qnode1->EndmostChildWithLabel(PQNode::full);
+  if (!empty_child1 || !full_child1)
     return false;
-    
-  // move the full children of X to be children of Y
-  if (X->full_children_.size() > 0) {
-    // only 1 full child
-    if (X->full_children_.size() == 1) {
-      ZF = *(X->full_children_.begin());
-      X->circular_link_.remove(ZF);
-    }
-    // multiple full children - must be placed in a P-node
-    else
-    {
-      // create ZF to be a new p-node
-      ZF = new PQNode;
-      ZF->type_ =PQNode::pnode;
-      ZF->label_ = PQNode::full;
 
-      // for all the full nodes in X, set their to be ZF
-      for (set<PQNode *>::iterator W = X->full_children_.begin();
-	   W != X->full_children_.end(); W++)
-      {
-        (*W)->parent_ = ZF;
-        X->circular_link_.remove(*W);
-        ZF->circular_link_.push_back(*W);
-      }
-    }
-    // more updates
-    ZF->parent_ = Y;
-    FC->immediate_siblings_.insert(ZF);      
-    ZF->immediate_siblings_.insert(FC);
-    if (Y->endmost_children_[0]==FC)
-             Y->endmost_children_[0]=ZF;
-    if (Y->endmost_children_[1]==FC)
-      Y->endmost_children_[1]=ZF;      
-    
-    //now, incorporate the other partial child
+  PQNode* empty_child2 = partial_qnode2->EndmostChildWithLabel(PQNode::empty);
+  PQNode* full_child2 = partial_qnode2->EndmostChildWithLabel(PQNode::full);
+  if (!empty_child2 || !full_child2)
+    return false;
 
-    //find the empty and full endmost child of Z
-    if (Z->endmost_children_[0]->label_ == PQNode::empty)
-    {
-      EC=Z->endmost_children_[0];
-      FC=Z->endmost_children_[1];
+  // Move the full children of candidate_node to be children of partial_qnode1
+  if (!candidate_node->full_children_.empty()) {
+    PQNode *full_children_root = NULL;
+    if (candidate_node->full_children_.size() == 1) {
+      full_children_root = *candidate_node->full_children_.begin();
+      candidate_node->circular_link_.remove(full_children_root);
+    } else {
+      // create full_children_root to be a new p-node
+      full_children_root = new PQNode;
+      full_children_root->type_ = PQNode::pnode;
+      full_children_root->label_ = PQNode::full;
+      candidate_node->MoveFullChildren(full_children_root); 
     }
-    else
-    {
-      EC=Z->endmost_children_[1];
-      FC=Z->endmost_children_[0];
-    }
-    //check that we are indeed matching the pattern
-    if (EC->label_ != PQNode::empty || FC->label_ == PQNode::empty)
-      return false;
+    full_children_root->parent_ = partial_qnode1;
+    full_child2->parent_ = partial_qnode1;
 
-    //connect the children of the two partials together
-    ZF->immediate_siblings_.insert(FC);
-    FC->immediate_siblings_.insert(ZF);
-
-    // Adjust the Y
-    if (Y->endmost_children_[0] == ZF)
-      Y->endmost_children_[0] = EC;
-    if (Y->endmost_children_[1] == ZF)
-      Y->endmost_children_[1] = EC;
-    FC->parent_ = Y;
-    EC->parent_ = Y;
+    full_child1->immediate_siblings_.insert(full_children_root);
+    full_child2->immediate_siblings_.insert(full_children_root);
+    full_children_root->immediate_siblings_.insert(full_child1);
+    full_children_root->immediate_siblings_.insert(full_child2);
+  } else  {
+    full_child1->immediate_siblings_.insert(full_child2);
+    full_child2->immediate_siblings_.insert(full_child1);
   }
-  else  //no full children
-  {
-    PQNode *ZFC=NULL;  //Z's full child
+  partial_qnode1->ReplaceEndmostChild(full_child1, empty_child2);
+  empty_child2->parent_ = partial_qnode1;
 
-    //figure out which sides of Y and Z to connect together
-    if (Z->endmost_children_[0]->label_ == PQNode::full)
-    {
-      ZFC=Z->endmost_children_[0];
-      if (Y->endmost_children_[0]==FC)
-        Y->endmost_children_[0]=Z->endmost_children_[1];
-      if (Y->endmost_children_[1]==FC)
-        Y->endmost_children_[1]=Z->endmost_children_[1];
-    }
-    else
-    {
-      ZFC=Z->endmost_children_[1];
-      if (Y->endmost_children_[0]==FC)
-        Y->endmost_children_[0]=Z->endmost_children_[0];
-      if (Y->endmost_children_[1]==FC)
-        Y->endmost_children_[1]=Z->endmost_children_[0];
-    }
-    Y->endmost_children_[0]->parent_ = Y;
-    Y->endmost_children_[1]->parent_ = Y;
+  // We dont need |partial_qnode2| any more
+  candidate_node->circular_link_.remove(partial_qnode2);
+  partial_qnode2->endmost_children_[0] = NULL;
+  partial_qnode2->endmost_children_[1] = NULL;
+  delete partial_qnode2;
 
-    FC->immediate_siblings_.insert(ZFC);
-    ZFC->immediate_siblings_.insert(FC);
-  }
-    
-  
-  //adjust the root X
-  //we dont need Z any more
-  X->circular_link_.remove(Z);
-  Z->endmost_children_[0]=NULL;
-  Z->endmost_children_[1]=NULL;
-  delete Z;
+  // If |candidate_node| now only has one child, get rid of |candidate_node|.
+  if (candidate_node->circular_link_.size() == 1) {
+    partial_qnode1->parent_ = candidate_node->parent_;
+    partial_qnode1->pertinent_leaf_count = candidate_node->pertinent_leaf_count;
+    partial_qnode1->label_ = PQNode::partial;
 
-  //if X now only has one child, get rid of X
-  if (X->circular_link_.size()==1)
-  {
-  
-    PQNode* theParent = X->parent_;
-    Y->parent_ = X->parent_;
-    Y->pertinent_leaf_count = X->pertinent_leaf_count;
-    Y->label_ = PQNode::partial;
-  
-    if (theParent != NULL) {  // Parent is not root of tree
-      // Add Y to it's s list of partial children
-      theParent->partial_children_.insert(Y);
-  
-      // Update to handle the switch
-      if (theParent->type_ == PQNode::pnode)
-      {
-        theParent->circular_link_.remove(X);  
-        theParent->circular_link_.push_back(Y);
-      }
-      else { // Parent is a Q-node
-        // Update the immediate siblings list by removing X and adding Y
-        for (set<PQNode *>::iterator i = X->immediate_siblings_.begin();
-	    i != X->immediate_siblings_.end(); i++) {
-          (*i)->immediate_siblings_.erase(X);
-          (*i)->immediate_siblings_.insert(Y);
+    if (candidate_node->parent_) {
+      candidate_node->parent_->partial_children_.insert(partial_qnode1);
+      if (candidate_node->parent_->type_ == PQNode::pnode) {
+        candidate_node->parent_->ReplaceCircularLink(candidate_node,
+                                                     partial_qnode1);
+      } else {
+        for (set<PQNode *>::iterator i = 
+                 candidate_node->immediate_siblings_.begin();
+             i != candidate_node->immediate_siblings_.end(); i++) {
+          (*i)->ReplaceImmediateSibling(candidate_node, partial_qnode1);
         }
-        if (theParent->endmost_children_[0] == X)
-          theParent->endmost_children_[0] = Y;
-        if (theParent->endmost_children_[1] == X)
-          theParent->endmost_children_[1] = Y;
+        candidate_node->parent_->ReplaceEndmostChild(candidate_node,
+                                                     partial_qnode1);
       }
     }
-    else {  // This is the root of our tree, act accordingly
-      root_ = Y;
-      Y->parent_ = NULL;
-      
-      //delete X, but not it's children
-      X->circular_link_.clear();
-      delete X;
-    }  
+    else {
+      root_ = partial_qnode1;
+      partial_qnode1->parent_ = NULL;
+
+      // Delete candidate_node, but not it's children.
+      candidate_node->circular_link_.clear();
+      delete candidate_node;
+    }
   }
   return true;
 }
@@ -696,9 +553,9 @@ bool PQTree::bubble(set<int> reduction_set) {
   block_count_ = 0;
   blocked_nodes_ = 0;
   off_the_top_ = 0;
-  
+
   // Stores nodes that aren't PQNode::unblocked
-  set<PQNode*> blocked_list;  
+  set<PQNode*> blocked_list;
 
   // Insert the set's leaves into the queue
   for (set<int>::iterator i = reduction_set.begin();
@@ -713,45 +570,45 @@ bool PQTree::bubble(set<int> reduction_set) {
     // Check to see if there are still nodes in the queue
     if (q.empty())
       return false;
-    
-    // Remove X from the front of the queue
-    PQNode* X = q.front();
+
+    // Remove candidate_node from the front of the queue
+    PQNode* candidate_node = q.front();
     q.pop();
-    
-    // Mark X as blocked
-    X->mark_ = PQNode::blocked;
-    
+
+    // Mark candidate_node as blocked
+    candidate_node->mark_ = PQNode::blocked;
+
     // Get the set of blocked and PQNode::unblocked siblings
     set<PQNode *> US, BS;
-    for (set<PQNode *>::iterator i = X->immediate_siblings_.begin();
-	i != X->immediate_siblings_.end(); i++) {
+    for (set<PQNode *>::iterator i = candidate_node->immediate_siblings_.begin();
+        i != candidate_node->immediate_siblings_.end(); i++) {
       if ((*i)->mark_ == PQNode::blocked) {
         BS.insert(*i);
       } else if ((*i)->mark_ == PQNode::unblocked) {
         US.insert(*i);
       }
     }
-    // We can assign a to X if one of its immediate siblings is PQNode::unblocked
+    // We can assign a to candidate_node if one of its immediate siblings is PQNode::unblocked
     // Or it has 0/1 immediate siblings meaning it is a corner child of a q node
     // Or a child of a p node
     if (!US.empty()) {
-      X->parent_ = (*US.begin())->parent_;
-      X->mark_ = PQNode::unblocked;
+      candidate_node->parent_ = (*US.begin())->parent_;
+      candidate_node->mark_ = PQNode::unblocked;
     }
-    else if (X->immediate_siblings_.size() < 2) {
-      X->mark_ = PQNode::unblocked;
+    else if (candidate_node->immediate_siblings_.size() < 2) {
+      candidate_node->mark_ = PQNode::unblocked;
     }
-    
+
     // If it is PQNode::unblocked, we can process it.
-    if (X->mark_ == PQNode::unblocked) {
+    if (candidate_node->mark_ == PQNode::unblocked) {
       int listSize = 0;
-      PQNode* Y = X->parent_;
+      PQNode* Y = candidate_node->parent_;
       if (!BS.empty()) {
-        X->mark_ = PQNode::blocked;  // Will be PQNode::unblocked by recursive unblocksiblings
-        listSize = UnblockSiblings(X, Y);
+        candidate_node->mark_ = PQNode::blocked;  // Will be PQNode::unblocked by recursive unblocksiblings
+        listSize = UnblockSiblings(candidate_node, Y);
         Y->pertinent_child_count += listSize-1;
       }
-      
+
       if (Y == NULL) {  // Currently at root node
         off_the_top_ = 1;
       } else {
@@ -762,17 +619,17 @@ bool PQTree::bubble(set<int> reduction_set) {
         }
       }
       block_count_ -= BS.size();
-      blocked_nodes_ -= listSize;          
+      blocked_nodes_ -= listSize; 
     } else {
       block_count_ += 1-BS.size();
       blocked_nodes_ += 1;
-      blocked_list.insert(X);
+      blocked_list.insert(candidate_node);
     }
   }
 
   if (block_count_ > 1 || (off_the_top_ == 1 && block_count_ != 0))
     return false;
-  
+
   int correctblockedcount = 0;
   for (set<PQNode*>::iterator i = blocked_list.begin();
       i != blocked_list.end(); i++) {
@@ -788,19 +645,19 @@ bool PQTree::bubble(set<int> reduction_set) {
     pseudonode_->pseudonode_ = true;
     int side = 0;
     pseudonode_->pertinent_child_count = 0;
-    
+
     // Figure out which nodes are still blocked and which of those are the
     // endmost children
     for (set<PQNode*>::iterator i = blocked_list.begin();
-	i != blocked_list.end(); ++i)
+        i != blocked_list.end(); ++i)
       if ((*i)->mark_ == PQNode::blocked) {
         pseudonode_->pertinent_child_count++;
         pseudonode_->pertinent_leaf_count += (*i)->pertinent_leaf_count;
         int count = 0;  //count number of immediate siblings
         int loop = 0;
         for (set<PQNode*>::iterator j = (*i)->immediate_siblings_.begin();
-	    j != (*i)->immediate_siblings_.end() && loop < 2;
-	    j++) {
+            j != (*i)->immediate_siblings_.end() && loop < 2;
+            j++) {
           loop++;
 
           if ((*j)->mark_ == PQNode::blocked) {
@@ -818,56 +675,56 @@ bool PQTree::bubble(set<int> reduction_set) {
       }
   }
   return true;
-}  
+}
 
 bool PQTree::reduceStep(set<int> reduction_set) {
   // Build a queue with all the pertinent leaves in it
   queue<PQNode*> q;
   for (set<int>::iterator i = reduction_set.begin();
        i != reduction_set.end(); i++) {
-    PQNode* X = leaf_address_[*i];
-    if (X == NULL)
+    PQNode* candidate_node = leaf_address_[*i];
+    if (candidate_node == NULL)
       return false;
-    X->pertinent_leaf_count = 1;
-    q.push(X);
+    candidate_node->pertinent_leaf_count = 1;
+    q.push(candidate_node);
   }
 
   while (!q.empty()) {
-    // Remove X from the front of the queue
-    PQNode* X = q.front();
+    // Remove candidate_node from the front of the queue
+    PQNode* candidate_node = q.front();
     q.pop();
 
-    // if X is not the root of the reduction subtree
-    if (X->pertinent_leaf_count < reduction_set.size()) {
-      // Update X's parent Y
-      PQNode* Y = X->parent_;
-      Y->pertinent_leaf_count += X->pertinent_leaf_count;
+    // if candidate_node is not the root of the reduction subtree
+    if (candidate_node->pertinent_leaf_count < reduction_set.size()) {
+      // Update candidate_node's parent Y
+      PQNode* Y = candidate_node->parent_;
+      Y->pertinent_leaf_count += candidate_node->pertinent_leaf_count;
       Y->pertinent_child_count--;
       // Push Y onto the queue if it has no more pertinent children
       if (Y->pertinent_child_count == 0)
         q.push(Y);
 
       // Test against each template in turn until one of them returns true.
-      if      (TemplateL1(X)) {}
-      else if (TemplateP1(X, /*is_reduction_root=*/ false)) {}
-      else if (TemplateP3(X)) {}
-      else if (TemplateP5(X)) {}
-      else if (TemplateQ1(X)) {}
-      else if (TemplateQ2(X)) {}
+      if      (TemplateL1(candidate_node)) {}
+      else if (TemplateP1(candidate_node, /*is_reduction_root=*/ false)) {}
+      else if (TemplateP3(candidate_node)) {}
+      else if (TemplateP5(candidate_node)) {}
+      else if (TemplateQ1(candidate_node)) {}
+      else if (TemplateQ2(candidate_node)) {}
       else {
         cleanPseudo();
         return false;
       }
-    } else {  // X is the root of the reduction subtree
+    } else {  // candidate_node is the root of the reduction subtree
       // Test against each template in turn until one of them returns true.
-      if      (TemplateL1(X)) {}
-      else if (TemplateP1(X, /*is_reduction_root=*/ true)) {}
-      else if (TemplateP2(X)) {}
-      else if (TemplateP4(X)) {}
-      else if (TemplateP6(X)) {}
-      else if (TemplateQ1(X)) {}
-      else if (TemplateQ2(X)) {}
-      else if (TemplateQ3(X)) {}
+      if      (TemplateL1(candidate_node)) {}
+      else if (TemplateP1(candidate_node, /*is_reduction_root=*/ true)) {}
+      else if (TemplateP2(candidate_node)) {}
+      else if (TemplateP4(candidate_node)) {}
+      else if (TemplateP6(candidate_node)) {}
+      else if (TemplateQ1(candidate_node)) {}
+      else if (TemplateQ2(candidate_node)) {}
+      else if (TemplateQ3(candidate_node)) {}
       else {
         cleanPseudo();
         return false;
@@ -882,9 +739,9 @@ void PQTree::cleanPseudo() {
   if (pseudonode_ != NULL) {
     for (int i = 0; i < 2; i++) {
       pseudonode_->endmost_children_[i]->immediate_siblings_.insert(
-	  pseudonode_->pseudo_neighbors_[i]);
+          pseudonode_->pseudo_neighbors_[i]);
       pseudonode_->pseudo_neighbors_[i]->immediate_siblings_.insert(
-	  pseudonode_->endmost_children_[i]);
+          pseudonode_->endmost_children_[i]);
     }
 
     pseudonode_->endmost_children_[0] = NULL;
@@ -925,7 +782,7 @@ string PQTree::Print() {
 bool PQTree::safeReduce(set<int> S) {
   //using a backup copy to enforce safety
   PQTree toCopy(*this);
-  
+
   if (!reduce(S)) {
     //reduce failed, so perform a copy
     root_ = new PQNode(*toCopy.root_);
@@ -934,7 +791,7 @@ bool PQTree::safeReduce(set<int> S) {
     off_the_top_ = toCopy.off_the_top_;
     invalid_ = toCopy.invalid_;
     leaf_address_.clear();
-    root_->FindLeaves(leaf_address_);  
+    root_->FindLeaves(leaf_address_);
     return false;
   }
   return true;
@@ -951,13 +808,13 @@ bool PQTree::safeReduceAll(list<set<int> > L) {
     off_the_top_ = toCopy.off_the_top_;
     invalid_ = toCopy.invalid_;
     leaf_address_.clear();
-    root_->FindLeaves(leaf_address_);  
+    root_->FindLeaves(leaf_address_);
     return false;
   }
   return true;
-}  
+}
 
-  
+
 bool PQTree::reduce(set<int> reduction_set) {
   if (reduction_set.size() < 2) {
     reductions_.push_back(reduction_set);
@@ -973,7 +830,7 @@ bool PQTree::reduce(set<int> reduction_set) {
     invalid_ = true;
     return false;
   }
-  
+
   // We dont need any more pseudonodes at least until the next reduce
   if (pseudonode_ != NULL) {
     pseudonode_->endmost_children_[0] = NULL;
@@ -984,7 +841,7 @@ bool PQTree::reduce(set<int> reduction_set) {
 
   // Reset all the temporary variables for the next round
   root_->Reset();
-  
+
   // Store the reduction set for later lookup
   reductions_.push_back(reduction_set);
   return true;
@@ -1018,10 +875,10 @@ bool PQTree::reduceAll(list<set<int> > L) {
     }
     //Reset all the temporary variables for the next round
     root_->Reset();
-  
+
     //store the reduction set for later lookup
     reductions_.push_back(*S);
-  }  
+  }
   return true;
 }
 
