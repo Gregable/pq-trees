@@ -34,6 +34,12 @@ class PQNode {
   
   // A count of the number of children used by a node.
   int ChildCount();
+
+  // Returns the first |circular_link_| child with a given label or NULL.
+  PQNode* CircularChildWithLabel(PQNode_labels label);
+
+  // Moves the full children of this node to children of |new_node|.
+  void MoveFullChildren(PQNode* new_node);
   
   /***** Used by Q Nodes only *****/
   
@@ -55,6 +61,9 @@ class PQNode {
   
   // Replaces the immediate sibling of |old_child| with |new_child|.
   void ReplaceImmediateSibling(PQNode* old_child, PQNode* new_child);
+
+  // Replaces the partial child |old_child| with |new_child|.
+  void ReplacePartialChild(PQNode* old_child, PQNode* new_child);
   
   /***** Used by Both Node types *****/
   

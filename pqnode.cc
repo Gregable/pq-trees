@@ -179,6 +179,16 @@ PQNode::~PQNode() {
   }
 }
 
+PQNode* PQNode::CircularChildWithLabel(PQNode_labels label) {
+  for (list<PQNode*>::iterator i = circular_link_.begin();
+       i != circular_link_.end(); i++) {
+    if ((*i)->label_ == label)
+      return *i;
+  }
+  return NULL;
+}
+
+
 PQNode* PQNode::EndmostChildWithLabel(PQNode_labels label) {
   for (int i = 0; i < 2; ++i) {
     if (endmost_children_[i] && endmost_children_[i]->label_ == label)
@@ -188,7 +198,7 @@ PQNode* PQNode::EndmostChildWithLabel(PQNode_labels label) {
 }
 
 PQNode* PQNode::ImmediateSiblingWithLabel(PQNode_labels label) {
-  for (set<PQNode *>::iterator i = immediate_siblings_.begin();
+  for (set<PQNode*>::iterator i = immediate_siblings_.begin();
        i != immediate_siblings_.end(); i++) {
     if ((*i)->label_ == label)
       return *i;
@@ -207,10 +217,31 @@ void PQNode::ReplaceEndmostChild(PQNode* old_child, PQNode* new_child) {
 
 void PQNode::ReplaceImmediateSibling(PQNode* old_child, PQNode* new_child) {
   immediate_siblings_.erase(old_child);
-
   immediate_siblings_.insert(new_child);
   new_child->immediate_siblings_.insert(this);
 }
+
+void PQNode::ReplacePartialChild(PQNode* old_child, PQNode* new_child) {
+  new_child->parent_ = this;
+  partial_children_.insert(new_child);
+  partial_children_.erase(old_child);
+  if (type_ == pnode) {
+    circular_link_.remove(old_child);
+    circular_link_.push_back(new_child);
+  } else {
+    old_child->SwapQ(new_child);
+  }
+}
+
+void PQNode::MoveFullChildren(PQNode* new_node) {
+  for (set<PQNode*>::iterator i = full_children_.begin();
+       i != full_children_.end(); ++i) {
+    circular_link_.remove(*i);
+    new_node->circular_link_.push_back(*i);
+    (*i)->parent_ = new_node;
+  }
+}
+
 
 // FindLeaves, FindFrontier, Reset, and Print are very similar recursive
 // functions.  Each is a depth-first walk of the entire tree looking for data

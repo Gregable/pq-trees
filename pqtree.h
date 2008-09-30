@@ -66,16 +66,16 @@ class PQTree {
   // the index of the template for that letter.  These are the same indices in
   // the Booth & Lueker paper.  The return value indicates whether or not the
   // pattern accurately matches the template
-  bool template_L1(PQNode* candidate_node);
-  bool template_Q1(PQNode* candidate_node);
-  bool template_Q2(PQNode* candidate_node);
-  bool template_Q3(PQNode* candidate_node);
-  bool template_P1(PQNode* candidate_node, bool is_reduction_root);
-  bool template_P2(PQNode* candidate_node);
-  bool template_P3(PQNode* candidate_node);
-  bool template_P4(PQNode* candidate_node);
-  bool template_P5(PQNode* candidate_node);
-  bool template_P6(PQNode* candidate_node);
+  bool TemplateL1(PQNode* candidate_node);
+  bool TemplateQ1(PQNode* candidate_node);
+  bool TemplateQ2(PQNode* candidate_node);
+  bool TemplateQ3(PQNode* candidate_node);
+  bool TemplateP1(PQNode* candidate_node, bool is_reduction_root);
+  bool TemplateP2(PQNode* candidate_node);
+  bool TemplateP3(PQNode* candidate_node);
+  bool TemplateP4(PQNode* candidate_node);
+  bool TemplateP5(PQNode* candidate_node);
+  bool TemplateP6(PQNode* candidate_node);
   
   // This procedure is the first pass of the Booth&Leuker PQTree algorithm
   // It processes the pertinent subtree of the PQ-Tree to determine the mark
