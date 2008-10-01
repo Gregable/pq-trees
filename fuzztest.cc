@@ -43,7 +43,7 @@ bool fuzztest() {
 	cout << frontier[k] << " ";
       }
       cout << "\n";
-      if (!tree.reduce(reduction)) {
+      if (!tree.Reduce(reduction)) {
 	return false;
       }
       cout << tree.Print() << "\n";

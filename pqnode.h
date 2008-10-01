@@ -67,6 +67,10 @@ class PQNode {
 
   // Replaces the partial child |old_child| with |new_child|.
   void ReplacePartialChild(PQNode* old_child, PQNode* new_child);
+
+  // Forces a Q-Node to "forget" it's pointers to it's endmost children.  
+  // Useful if you want to delete a Q-Node but not it's children.
+  void ForgetChildren();
   
   /***** Used by Both Node types *****/
   

@@ -233,6 +233,11 @@ void PQNode::ReplacePartialChild(PQNode* old_child, PQNode* new_child) {
   }
 }
 
+void PQNode::ForgetChildren() {
+  for (int i = 0; i < 2; ++i)
+    endmost_children_[i] = NULL;
+}  
+
 void PQNode::MoveFullChildren(PQNode* new_node) {
   for (set<PQNode*>::iterator i = full_children_.begin();
        i != full_children_.end(); ++i) {

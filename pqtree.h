@@ -82,9 +82,9 @@ class PQTree {
   // of every node in that subtree
   // the pseudonode, if created, is returned so that it can be deleted at
   // the end of the reduce step
-  bool bubble(set<int> S);
+  bool Bubble(set<int> S);
 
-  bool reduceStep(set<int> S);
+  bool ReduceStep(set<int> S);
         
  public:  
   // Default constructor - constructs a tree using a set
@@ -97,20 +97,20 @@ class PQTree {
   string Print();
   
   // Cleans up pointer mess caused by having a pseudonode
-  void cleanPseudo();
+  void CleanPseudo();
 
   // Reduces the tree but protects if from becoming invalid if the reduction
   // fails, takes more time.
-  bool safeReduce(set<int>);
-  bool safeReduceAll(list<set<int> >);
+  bool SafeReduce(set<int>);
+  bool SafeReduceAll(list<set<int> >);
 
   //reduces the tree - tree can become invalid, making all further
   //reductions fail
-  bool reduce(set<int> S);
-  bool reduceAll(list<set<int> > L);
+  bool Reduce(set<int> S);
+  bool ReduceAll(list<set<int> > L);
   
   // Returns 1 possible frontier, or ordering preserving the reductions
-  list<int> frontier();
+  list<int> Frontier();
   
   // Assignment operator
   PQTree& operator=(const PQTree& to_copy);  
@@ -121,13 +121,13 @@ class PQTree {
   
   // Returns a frontier not including leaves that were not a part of any
   // reduction
-  list<int> reducedFrontier();
+  list<int> ReducedFrontier();
   
   // Returns the reductions that have been performed on this tree.
-  list<set<int> > getReductions();
+  list<set<int> > GetReductions();
   
   // Returns the set of all elements on which a reduction was performed.
-  set<int> getContained();
+  set<int> GetContained();
 };
 
 #endif
