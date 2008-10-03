@@ -4,3 +4,31 @@ Kellog S. Booth, George S. Lueker, Testing for the consecutive ones property,
 interval graphs, and graph planarity using PQ-tree algorithms, Journal of
 Computer and Systems Sciences, 13(3) (1976) 335-379.
 
+
+Description of files:
+The main file for this library is pqtree.h.  It contains an API that can be
+used by client code for dealing with PQ-Trees.  There are two binaries:
+fuzztest and pqtest.
+
+pqtest runs the pqtree code for one example set of reductions on a single tree, printing the state of the tree at every step.  This illustrates how the pqtree is built.
+
+fuzztest generates a large random set of possible reductions and runs them
+against the library making sure that it never returns false or segfaults.
+
+Usage:
+Primarily, this is intended to be used as a library, not a binary.  But you can
+still compile and run the binaries |pqtest| and |fuzztest|.  My personal
+recommendation would be to compile with scons, http://scons.org/.  To do so,
+run:
+
+$ scons
+$ ./fuzztest
+$ ./pqtest  
+  
+Alternatively, I also handily include the tried and true MakeFile, so if you
+don't have scons on your system and don't feel like installing it, instead just
+run:
+
+$ make
+$ ./fuzztest
+$ ./pqtest
