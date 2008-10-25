@@ -59,6 +59,15 @@ class PQNode {
   // Returns the first immediate sibling with a given label or NULL.
   PQNode* ImmediateSiblingWithLabel(PQNode_labels label);
 
+  // Returns the first immediate sibling without a given label or NULL.
+  PQNode* ImmediateSiblingWithoutLabel(PQNode_labels label);
+
+  // Adds an immediate sibling to this node
+  void AddImmediateSibling(PQNode* sibling);
+
+  // Returns the number of immediate siblings this node has (0, 1, or 2).
+  int ImmediateSiblingCount();
+
   // Replaces the |endmost_children_| pointer to |old_child| with |new_child|.
   void ReplaceEndmostChild(PQNode* old_child, PQNode* new_child);
   
@@ -80,10 +89,11 @@ class PQNode {
   // A set containing all the children of a node currently known to be partial.
   set<PQNode*> partial_children_;
   
-  // A set containing exactly 0, 1, or 2 nodes.
-  // Only children of Q nodes have more than 0 immediate siblings.
-  set<PQNode*> immediate_siblings_;
-  
+  // Only children of Q nodes have more than 0 immediate siblings.  Stores the
+  // siblings to either side of this node in its parent's children.  One or both
+  // siblings may be NULL.  
+  PQNode *immediate_siblings_[2];
+
   // Label is an indication of whether the node is empty, full, or partial
   enum PQNode_labels label_;
   
