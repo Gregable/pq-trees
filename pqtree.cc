@@ -25,7 +25,9 @@ void PQTree::CopyFrom(const PQTree& to_copy) {
   root_->FindLeaves(leaf_address_);
 }
 
-int PQTree::UnblockSiblings(PQNode* candidate_node, PQNode* parent, PQNode* last) {
+int PQTree::UnblockSiblings(PQNode* candidate_node,
+                            PQNode* parent,
+                            PQNode* last) {
   int unblocked_count = 0;
   if (candidate_node->mark_ == PQNode::blocked) {
     // Unblock the current sibling and set it's parent to |parent|.
@@ -57,7 +59,7 @@ int PQTree::UnblockSiblings(PQNode* candidate_node, PQNode* parent, PQNode* last
 // L1, P1, P2, P3, P4, P5, P6, Q1, Q2, Q3
 
 bool PQTree::TemplateL1(PQNode* candidate_node) {
-  // Check against the pattern: must be a leaf
+  // L1's pattern is simple: the node is a leaf node.
   if (candidate_node->type_ != PQNode::leaf)
     return false;
 
@@ -66,12 +68,9 @@ bool PQTree::TemplateL1(PQNode* candidate_node) {
 }
 
 bool PQTree::TemplateQ1(PQNode* candidate_node) {
+  // Q1's Pattern is a Q-Node that has only full children.
   if (candidate_node->type_ != PQNode::qnode)
     return false;
-
-  // Loop over all of our children.
-  // If all of them are full, so are we, mark as full return true.
-  // If any of them are empty or partial, return false.
   for (QNodeChildrenIterator it(candidate_node); !it.IsDone(); it.Next()) {
     if (it.Current()->label_ != PQNode::full)
       return false;
@@ -82,76 +81,52 @@ bool PQTree::TemplateQ1(PQNode* candidate_node) {
 }
 
 bool PQTree::TemplateQ2(PQNode* candidate_node) {
-  // Check against the pattern
+  // Q2's pattern is a Q-Node that either:
+  // 1) contains consecutive full children with one end of the consecutive 
+  //    ordering being one of |candidate_node|'s |endmost_children|, also full.
+  // 2) contains a single partial child that is one of |candidate_node|'s
+  //    |endmost_children|.
+  // 3) One of |candidate_node|'s |endmost_childdren| is full, consecutively
+  //    followed by 0 or more full children, followed by one partial child.
   if (candidate_node->type_ != PQNode::qnode ||
       candidate_node->pseudonode_ ||
       candidate_node->partial_children_.size() > 1)
     return false;
 
-  // Q2 must either have exactly 1 full end child or >0 partial end child.
-  if (!candidate_node->full_children_.empty()) {
-    int num_full_end_children = 0;
-    // full_end_child is the unique full element in our endmost_children_.
-    PQNode* full_end_child;
+  bool has_partial = candidate_node->partial_children_.size() > 0;
+  bool has_full = candidate_node->full_children_.size() > 0;
+
+  // All the full children must be consecutive starting at one end;
+  PQNode* begin_side = 
+    has_full ? candidate_node->EndmostChildWithLabel(PQNode::full) :
+               candidate_node->EndmostChildWithLabel(PQNode::partial);
+  QNodeChildrenIterator iter(candidate_node, begin_side);
+  for (int i = 0; i < candidate_node->full_children_.size(); ++i) {
+    if (iter.Current()->label_ != PQNode::full)
+      return false;
+    iter.Next();
+  }
+  // Followed by the partial child, if there is one.
+  if (iter.Current()->label_ != PQNode::partial && has_partial)
+    return false;
+  
+  // If there is a partial child, merge it's children into the candidate_node.
+  if (has_partial) {
+    PQNode* to_merge = *candidate_node->partial_children_.begin();
     for (int i = 0; i < 2; ++i) {
-      if (candidate_node->endmost_children_[i]->label_ == PQNode::full) {
-        full_end_child = candidate_node->endmost_children_[i];
-        num_full_end_children++;
+      PQNode* child = to_merge->endmost_children_[i];
+      PQNode* sibling = to_merge->ImmediateSiblingWithLabel(child->label_);
+      if (sibling) {
+        sibling->ReplaceImmediateSibling(to_merge, child);
+      } else {
+        candidate_node->ReplaceEndmostChild(to_merge, child);
+        child->parent_ = candidate_node;
       }
     }
-    // If not exactly 1 full endmost children, our pattern does not match.
-    if (num_full_end_children != 1)
-      return false;
-
-    // All the full children must be consecutive.
-    PQNode* full_child = full_end_child;
-    QNodeChildrenIterator iter(candidate_node, /*begin_side=*/full_end_child);
-    for (int i = 0; i < candidate_node->full_children_.size(); ++i) {
-      if (iter.Current()->label_ != PQNode::full)
-        return false;
-      iter.Next();
-    }
-
-    // If there is a partial child, it must also be consecutive with the full
-    // children.
-    if (iter.Current()->label_ != PQNode::partial &&
-        candidate_node->partial_children_.size() == 1)
-      return false;
-  } else {
-    // Or that the partial child is on the side
-    if (!candidate_node->EndmostChildWithLabel(PQNode::partial))
-      return false;
-  }
-
-  // Pattern matches.  If exists, merge partial child into the candidate_node.
-  if (candidate_node->partial_children_.size() > 0) {
-    PQNode* to_merge = *candidate_node->partial_children_.begin();
-
-    PQNode* full_child = to_merge->EndmostChildWithLabel(PQNode::full);
-    PQNode* empty_child = to_merge->EndmostChildWithLabel(PQNode::empty);
-
-    PQNode* full_sibling = to_merge->ImmediateSiblingWithLabel(PQNode::full);
-    PQNode* empty_sibling = to_merge->ImmediateSiblingWithLabel(PQNode::empty);
-
-    // If |partial_child| has a full immediate sibling
-    if (full_sibling) {
-      full_sibling->ReplaceImmediateSibling(to_merge, full_child);
-    } else {
-      candidate_node->ReplaceEndmostChild(to_merge, full_child);
-      full_child->parent_ = candidate_node;
-    }
-
-    // If node |to_merge| has an empty immediate sibling
-    if (empty_sibling) {
-      empty_sibling->ReplaceImmediateSibling(to_merge, empty_child);
-    } else {
-      candidate_node->ReplaceEndmostChild(to_merge, empty_child);
-      empty_child->parent_ = candidate_node;
-    }
-
     to_merge->ForgetChildren();
     delete to_merge;
   }
+
   candidate_node->label_ = PQNode::partial;
   if (candidate_node->parent_)
     candidate_node->parent_->partial_children_.insert(candidate_node);

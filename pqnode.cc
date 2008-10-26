@@ -172,10 +172,9 @@ PQNode* PQNode::CircularChildWithLabel(PQNode_labels label) {
 
 
 PQNode* PQNode::EndmostChildWithLabel(PQNode_labels label) {
-  for (int i = 0; i < 2; ++i) {
+  for (int i = 0; i < 2; ++i)
     if (endmost_children_[i] && endmost_children_[i]->label_ == label)
       return endmost_children_[i];
-  }
   return NULL;
 }
 
