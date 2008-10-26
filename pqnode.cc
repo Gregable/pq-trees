@@ -42,10 +42,8 @@ void PQNode::Copy(const PQNode& to_copy) {
   partial_children_.clear();
   full_children_.clear();
   circular_link_.clear();
-  for (int i = 0; i < 2; ++i) {
-    endmost_children_[i] = NULL;
-    immediate_siblings_[i] = NULL;
-  }
+  ClearImmediateSiblings();
+  ForgetChildren();
 
   // Copy the nodes in circular link for pnodes.
   // If it is not a pnode, it will be empty, so this will be a no-op.
@@ -69,10 +67,8 @@ void PQNode::Copy(const PQNode& to_copy) {
       lastCopy = curCopy;
       curCopy  = nextCopy;
       current  = CopyAsChild(*curCopy);
-      assert(current->ImmediateSiblingCount() == 0);
-      assert(last->ImmediateSiblingCount() == 0);
-      current->immediate_siblings_[0] = last;
-      last->immediate_siblings_[0] = current;
+      current->AddImmediateSibling(last);
+      last->AddImmediateSibling(current);
       last = current;
       nextCopy = curCopy->QNextChild(lastCopy);
     }
@@ -101,14 +97,10 @@ void PQNode::LabelAsFull() {
 // If last pointer is null, will return the first sibling.
 PQNode* PQNode::QNextChild(PQNode *last) {
   if (immediate_siblings_[0] == last) {
-    return immediate_siblings_[1];
-  } else if (last == NULL && ImmediateSiblingCount() == 2) {
-    // If |last| is not either sibling, we are on the edge of a pseudonode.
-    //TODO: Just return this
-	PQNode* sibling = ImmediateSiblingWithoutLabel(empty);
-	assert(sibling);
-	return sibling;
+      return immediate_siblings_[1];
   } else {
+    if (!last && 2 == ImmediateSiblingCount()) // occurs at edge of pseudonode.
+        return immediate_siblings_[1];
     return immediate_siblings_[0];
   }
 }
@@ -116,16 +108,14 @@ PQNode* PQNode::QNextChild(PQNode *last) {
 // Removes this node from a q-parent and puts toInsert in it's place
 void PQNode::SwapQ(PQNode *toInsert) {
   toInsert->pseudochild_ = pseudochild_;
+  toInsert->ClearImmediateSiblings();
   for (int i = 0; i < 2; ++i) {
     if (parent_->endmost_children_[i] == this)
       parent_->endmost_children_[i] = toInsert;
-
-    if (immediate_siblings_[i]) {
-      toInsert->immediate_siblings_[i] = immediate_siblings_[i];
+    if (immediate_siblings_[i])
       immediate_siblings_[i]->ReplaceImmediateSibling(this, toInsert);
-      immediate_siblings_[i] = NULL;
-    }
   }
+  ClearImmediateSiblings();
   parent_ = NULL;
 }
   
@@ -137,10 +127,8 @@ PQNode::PQNode(int value) {
   mark_                  = unmarked;
   pertinent_child_count  = 0;
   pertinent_leaf_count   = 0;
-  for (int i = 0; i < 2; ++i) {
-    endmost_children_[i]   = NULL;
-    immediate_siblings_[i] = NULL;
-  }
+  ClearImmediateSiblings();
+  ForgetChildren();
 }
   
 PQNode::PQNode() {
@@ -150,10 +138,8 @@ PQNode::PQNode() {
   mark_ = unmarked;
   pertinent_child_count = 0;
   pertinent_leaf_count = 0;
-  for (int i = 0; i < 2; ++i) {
-    endmost_children_[i]   = NULL;
-    immediate_siblings_[i] = NULL;
-  }
+  ClearImmediateSiblings();
+  ForgetChildren();
 }
 
 PQNode::~PQNode() {
@@ -208,21 +194,32 @@ PQNode* PQNode::ImmediateSiblingWithoutLabel(PQNode_labels label) {
 }
 
 void PQNode::AddImmediateSibling(PQNode *sibling) {
-  for (int i = 0; i < 2; ++i) {
-    if (!immediate_siblings_[i]) {
-      immediate_siblings_[i] = sibling;
-      return;
-    }
+  int null_idx = ImmediateSiblingCount();
+  assert(null_idx < 2);
+  immediate_siblings_[null_idx] = sibling;
+}
+
+void PQNode::RemoveImmediateSibling(PQNode *sibling) {
+  if (immediate_siblings_[0] == sibling) {
+    immediate_siblings_[0] = immediate_siblings_[1];
+    immediate_siblings_[1] = NULL;
+  } else if (immediate_siblings_[1] == sibling) {
+    immediate_siblings_[1] = NULL;
+  } else {
+    assert(false);
   }
-  assert(false);
+}
+
+void PQNode::ClearImmediateSiblings() {
+  for (int i = 0; i < 2; ++i)
+    immediate_siblings_[i] = NULL;
 }
 
 int PQNode::ImmediateSiblingCount() {
-  for (int i = 0; i < 2; ++i) {
-    if (!immediate_siblings_[i])
-      return i;
-  }
-  return 2;
+  int count = 0;
+  for (int i = 0; i < 2 && immediate_siblings_[i]; ++i)
+    count ++;
+  return count;
 }
 
 void PQNode::ReplaceEndmostChild(PQNode* old_child, PQNode* new_child) {
@@ -234,7 +231,6 @@ void PQNode::ReplaceEndmostChild(PQNode* old_child, PQNode* new_child) {
   }
 }
 
-// TODO: Can this method be removed if the immediate siblings are ordered?
 void PQNode::ReplaceImmediateSibling(PQNode* old_child, PQNode* new_child) {
   for (int i = 0; i < 2 && immediate_siblings_[i]; ++i)
     if (immediate_siblings_[i] == old_child)
@@ -272,7 +268,6 @@ void PQNode::ReplaceCircularLink(PQNode* old_child, PQNode* new_child) {
   circular_link_.remove(old_child);
   circular_link_.push_back(new_child);
 }
-
 
 // FindLeaves, FindFrontier, Reset, and Print are very similar recursive
 // functions.  Each is a depth-first walk of the entire tree looking for data
@@ -422,13 +417,9 @@ void QNodeChildrenIterator::Next() {
   }
 
   if (current_) {
-    if (1 == current_->ImmediateSiblingCount()) {
-      next_ = NULL;
-    } if (current_->immediate_siblings_[0] != prev_) {
-      next_ = current_->immediate_siblings_[0];
-    } else {
+    next_ = current_->immediate_siblings_[0];
+    if (next_ == prev_)
       next_ = current_->immediate_siblings_[1];
-    }
   }
 }
 

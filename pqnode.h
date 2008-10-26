@@ -62,8 +62,14 @@ class PQNode {
   // Returns the first immediate sibling without a given label or NULL.
   PQNode* ImmediateSiblingWithoutLabel(PQNode_labels label);
 
-  // Adds an immediate sibling to this node
+  // Adds an immediate sibling to this node.
   void AddImmediateSibling(PQNode* sibling);
+  
+  // Adds an immediate sibling to this node.
+  void RemoveImmediateSibling(PQNode* sibling);
+
+  // Nulls otu the immediate siblings of this node.
+  void ClearImmediateSiblings();
 
   // Returns the number of immediate siblings this node has (0, 1, or 2).
   int ImmediateSiblingCount();
