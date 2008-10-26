@@ -90,24 +90,16 @@ bool PQTree::TemplateQ2(PQNode* candidate_node) {
   //    followed by 0 or more full children, followed by one partial child.
   if (candidate_node->type_ != PQNode::qnode ||
       candidate_node->pseudonode_ ||
-      candidate_node->partial_children_.size() > 1)
+      candidate_node->partial_children_.size() > 1 ||
+      !candidate_node->ConsecutiveFullPartialChildren())
     return false;
 
   bool has_partial = candidate_node->partial_children_.size() > 0;
   bool has_full = candidate_node->full_children_.size() > 0;
-
-  // All the full children must be consecutive starting at one end;
-  PQNode* begin_side = 
-    has_full ? candidate_node->EndmostChildWithLabel(PQNode::full) :
-               candidate_node->EndmostChildWithLabel(PQNode::partial);
-  QNodeChildrenIterator iter(candidate_node, begin_side);
-  for (int i = 0; i < candidate_node->full_children_.size(); ++i) {
-    if (iter.Current()->label_ != PQNode::full)
-      return false;
-    iter.Next();
-  }
-  // Followed by the partial child, if there is one.
-  if (iter.Current()->label_ != PQNode::partial && has_partial)
+  
+  if (has_full && !candidate_node->EndmostChildWithLabel(PQNode::full))
+    return false;
+  if (!has_full && !candidate_node->EndmostChildWithLabel(PQNode::partial))
     return false;
   
   // If there is a partial child, merge it's children into the candidate_node.
@@ -134,64 +126,31 @@ bool PQTree::TemplateQ2(PQNode* candidate_node) {
 }
 
 bool PQTree::TemplateQ3(PQNode* candidate_node) {
-  // Check against the pattern
+  // Q3's pattern is a Q-Node that contains 0-2 partial children.  It can
+  // contain any number of empty and full children, but any full children must
+  // be consecutive and sandwiched between any partial children.  Unlike Q2, 
+  // the consecutive full and partial children need not be endmost children.
   if (candidate_node->type_ != PQNode::qnode ||
-      candidate_node->partial_children_.size() > 2)
+      candidate_node->partial_children_.size() > 2 ||
+      !candidate_node->ConsecutiveFullPartialChildren())
     return false;
 
-  // Handle a special case
-  if (candidate_node->pseudonode_ &&
-      candidate_node->endmost_children_[1] == NULL)
-    return true;
-
-  // For Q3 to match, it must have at most one run of consecutive full or
-  // partial children, with any partial children being on the ends of the run.
-  bool run_started = false;
-  bool run_finished = false;
-  for (QNodeChildrenIterator it(candidate_node); !it.IsDone(); it.Next()) {
-    if (it.Current()->label_ == PQNode::full) {
-      if (run_finished)
-        return false;
-      run_started = true;
-    } else if (it.Current()->label_ == PQNode::empty) {
-      if (run_started)
-        run_finished = true;
-    } else if (it.Current()->label_ == PQNode::partial) {
-      if (run_finished)
-        return false;
-      if (run_started)
-        run_finished = true;
-      run_started = true;
-    }
-  }
-  cout << "Q3" << endl;
-
+  // Merge each of the partial children into |candidate_node|'s children
   for (set<PQNode*>::iterator j = candidate_node->partial_children_.begin();
        j != candidate_node->partial_children_.end(); j++) {
     PQNode* to_merge = *j;
-    PQNode* empty_child = to_merge->EndmostChildWithLabel(PQNode::empty);
-    PQNode* full_child = to_merge->EndmostChildWithLabel(PQNode::full);
-
-    // TODO: What exactly is CS's role?  How can it be better named?
-    PQNode* CS;
-    // Handle the sides where the child has immediate siblings.
-    for (int i = 0; i < 2 && to_merge->immediate_siblings_[i]; ++i) {
+    for (int i = 0; i < 2; ++i) {
       PQNode* sibling = to_merge->immediate_siblings_[i];
-      if (sibling->label_ == PQNode::empty) {
-        sibling->ReplaceImmediateSibling(to_merge, empty_child);
-        CS = full_child;
-      } else {  // |sibling| is either full or partial, we dont care which.
-        sibling->ReplaceImmediateSibling(to_merge, full_child);
-        CS = empty_child;
+      if (sibling) {
+	PQNode* child = to_merge->EndmostChildWithLabel(sibling->label_);
+	if (!child)
+	  child = to_merge->EndmostChildWithLabel(PQNode::full);
+        sibling->ReplaceImmediateSibling(to_merge, child);
+      } else {
+	PQNode* empty_child = to_merge->EndmostChildWithLabel(PQNode::empty);
+        empty_child->parent_ = candidate_node;
+        candidate_node->ReplaceEndmostChild(to_merge, empty_child);
       }
-    }
-    if (candidate_node->pseudonode_)
-      CS = empty_child;
-    // Handle the case where |to_merge| had only one immediate sibling.
-    bool has_only_one_sibling = (to_merge->ImmediateSiblingCount() == 1);
-    if (has_only_one_sibling || candidate_node->pseudonode_) {
-      CS->parent_ = candidate_node;
-      candidate_node->ReplaceEndmostChild(to_merge, CS);
     }
 
     to_merge->ForgetChildren();

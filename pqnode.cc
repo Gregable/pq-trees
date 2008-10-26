@@ -254,6 +254,32 @@ void PQNode::ForgetChildren() {
     endmost_children_[i] = NULL;
 }  
 
+bool PQNode::ConsecutiveFullPartialChildren() {
+  // Trivial Case:
+  if (full_children_.size() + partial_children_.size() <= 1)
+    return true;
+  // The strategy here is to count the number of each label of the siblings of
+  // all of the full and partial children and see if the counts are correct.
+  map<PQNode_labels, int> counts;
+  for(set<PQNode*>::iterator it = full_children_.begin();
+      it != full_children_.end(); ++it) {
+    for (int i = 0; i < 2 && (*it)->immediate_siblings_[i]; ++i)
+      counts[(*it)->immediate_siblings_[i]->label_]++;
+  }
+  for(set<PQNode*>::iterator it = partial_children_.begin();
+      it != partial_children_.end(); ++it) {
+    for (int i = 0; i < 2 && (*it)->immediate_siblings_[i]; ++i)
+      counts[(*it)->immediate_siblings_[i]->label_]++;
+  }
+  if (counts[partial] != partial_children_.size())
+    return false;
+  // Depending on how many partials there are, most full children will get
+  // counted twice.
+  if (counts[full] != (full_children_.size() * 2) - (2 - counts[partial]))
+    return false;
+  return true;
+}
+
 void PQNode::MoveFullChildren(PQNode* new_node) {
   for (set<PQNode*>::iterator i = full_children_.begin();
        i != full_children_.end(); ++i) {

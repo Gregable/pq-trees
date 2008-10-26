@@ -86,6 +86,10 @@ class PQNode {
   // Forces a Q-Node to "forget" it's pointers to it's endmost children.  
   // Useful if you want to delete a Q-Node but not it's children.
   void ForgetChildren();
+
+  // Returns true if all of the full and partial children of this node are
+  // consecutive, with the partial children on the outside.
+  bool ConsecutiveFullPartialChildren();
   
   /***** Used by Both Node types *****/
   
