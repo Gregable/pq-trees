@@ -158,14 +158,14 @@ bool PQTree::TemplateQ3(PQNode* candidate_node) {
   }
   return true;
 }
-/* A note here.  An error in the Booth and Leuker Algorithm fails to consider
- * the case where a P-node is full, is the pertinent root, and is not an endmost
- * child of a q-node.  In this case, we need to know that the P-node is a
- * pertinent root and not try to update its whose pointer is possibly
- * invalid
- */
+
+// A note here.  An error in the Booth and Leuker Algorithm fails to consider
+// the case where a P-node is full, is the pertinent root, and is not an endmost
+// child of a q-node.  In this case, we need to know that the P-node is a
+// pertinent root and not try to update its parent whose pointer is possibly
+// invalid.
 bool PQTree::TemplateP1(PQNode* candidate_node, bool is_reduction_root) {
-    // Check against the pattern
+    // P1's pattern is a P-Node with all full children.
     if (candidate_node->type_ != PQNode::pnode ||
         candidate_node->full_children_.size() != candidate_node->ChildCount())
       return false;
@@ -177,9 +177,10 @@ bool PQTree::TemplateP1(PQNode* candidate_node, bool is_reduction_root) {
 }
 
 bool PQTree::TemplateP2(PQNode* candidate_node) {
-  // Check against the pattern
+  // P2's pattern is a P-Node at the root of the perinent subtree containing
+  // both empty and full children.
   if (candidate_node->type_ != PQNode::pnode ||
-      candidate_node->partial_children_.size() != 0)
+      !candidate_node->partial_children_.empty())
     return false;
 
   // Move candidate_node's full children into their own P-node
@@ -196,12 +197,24 @@ bool PQTree::TemplateP2(PQNode* candidate_node) {
   return true;
 }
 bool PQTree::TemplateP3(PQNode* candidate_node) {
-  //check against the pattern
+  // P3's pattern is a P-Node not at the root of the perinent subtree
+  // containing both empty and full children.
   if (candidate_node->type_ != PQNode::pnode ||
       !candidate_node->partial_children_.empty())
     return false;
 
-  // Set up the p_node on the full child side.
+  // P3's replacement is to create a Q-node that places all of the full
+  // elements in a single P-Node child and all of the empty elements in a
+  // single Q-Node child.  This new Q-Node is called a pseudonode as it isn't
+  // properly formed (Q-Nodes should have at least 3 children) and will not
+  // survive in it's current form to the end of the reduction.
+  PQNode* new_qnode = new PQNode;
+  new_qnode->type_ = PQNode::qnode;
+  new_qnode->label_ = PQNode::partial;
+  candidate_node->parent_->ReplacePartialChild(candidate_node, new_qnode);
+
+  // Set up a |full_child| of |new_qnode| containing all of |candidate_node|'s
+  // full children.
   PQNode* full_child;
   if (candidate_node->full_children_.size() == 1) {
     full_child = *candidate_node->full_children_.begin();
@@ -212,21 +225,16 @@ bool PQTree::TemplateP3(PQNode* candidate_node) {
     full_child->label_ = PQNode::full;
     candidate_node->MoveFullChildren(full_child);
   }
-
-  PQNode* new_qnode = new PQNode;
-  new_qnode->type_ = PQNode::qnode;
-  candidate_node->parent_->ReplacePartialChild(candidate_node, new_qnode);
-
   full_child->parent_ = new_qnode;
+  full_child->label_ = PQNode::full;
   new_qnode->endmost_children_[0] = full_child;
   new_qnode->full_children_.insert(full_child);
 
-  // Now set up the p-node on the empty child side.
+  // Set up a |empty_child| of |new_qnode| containing all of |candidate_node|'s
+  // empty children.
   PQNode* empty_child;
   if (candidate_node->circular_link_.size() == 1) {
     empty_child = *candidate_node->circular_link_.begin();
-
-    // We want to delete |candidate_node|, but not it's children.
     candidate_node->circular_link_.clear();
     delete candidate_node;
   } else {
@@ -240,12 +248,12 @@ bool PQTree::TemplateP3(PQNode* candidate_node) {
   empty_child->immediate_siblings_[0] = full_child;
   full_child->immediate_siblings_[0] = empty_child;
 
-  new_qnode->label_ = PQNode::partial;
-
   return true;
 }
 
 bool PQTree::TemplateP4(PQNode* candidate_node) {
+  // P4's pattern is a P-Node at the root of the perinent subtree containing
+  // one partial child and any number of empty/full children.
   if (candidate_node->type_ != PQNode::pnode ||
       candidate_node->partial_children_.size() != 1)
     return false;
@@ -254,7 +262,6 @@ bool PQTree::TemplateP4(PQNode* candidate_node) {
   assert(partial_qnode->type_ == PQNode::qnode);
   PQNode* empty_child = partial_qnode->EndmostChildWithLabel(PQNode::empty);
   PQNode* full_child = partial_qnode->EndmostChildWithLabel(PQNode::full);
-  PQNode* empty_sibling = candidate_node->CircularChildWithLabel(PQNode::empty);
 
   if (!empty_child || !full_child)
     return false;
@@ -280,25 +287,14 @@ bool PQTree::TemplateP4(PQNode* candidate_node) {
 
   // If |candidate_node| now only has one child, get rid of |candidate_node|.
   if (candidate_node->circular_link_.size() == 1) {
-    PQNode* the_parent = candidate_node->parent_;
     partial_qnode->parent_ = candidate_node->parent_;
-    if (the_parent != NULL) {  // Parent is root of tree
-      if (0 == candidate_node->ImmediateSiblingCount()) {  // Is p-node?
-        the_parent->circular_link_.remove(candidate_node);
-        the_parent->circular_link_.push_back(partial_qnode);
-      } else { // Is Q-node?
-        // Update the immediate siblings list by removing candidate_node and 
-        // adding partial_qnode.
-        for (int i = 0; i < 2 && candidate_node->immediate_siblings_[i]; ++i) {
-          PQNode *sibling = candidate_node->immediate_siblings_[i];
-	  	  sibling->ReplaceImmediateSibling(candidate_node, partial_qnode);
-        }
-        if (candidate_node->ImmediateSiblingCount() == 1)
-          the_parent->ReplaceEndmostChild(candidate_node, partial_qnode);
-      }
+    if (candidate_node->parent_) {
+      candidate_node->parent_->ReplaceChild(candidate_node, partial_qnode);
     } else {
       root_ = partial_qnode;
     }
+    candidate_node->circular_link_.clear();
+    delete candidate_node;
   }
   return true;
 }

@@ -104,6 +104,18 @@ PQNode* PQNode::QNextChild(PQNode *last) {
     return immediate_siblings_[0];
   }
 }
+
+void PQNode::ReplaceChild(PQNode* old_child, PQNode* new_child) {
+  if (type_ == pnode) {
+    ReplaceCircularLink(old_child, new_child);
+  } else { // qnode
+    for (int i = 0; i < 2 && old_child->immediate_siblings_[i]; ++i) {
+      PQNode *sibling = old_child->immediate_siblings_[i];
+      sibling->ReplaceImmediateSibling(old_child, new_child);
+    }
+    ReplaceEndmostChild(old_child, new_child);
+  }
+}
   
 // Removes this node from a q-parent and puts toInsert in it's place
 void PQNode::SwapQ(PQNode *toInsert) {

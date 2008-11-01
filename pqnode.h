@@ -143,6 +143,8 @@ class PQNode {
   // if last pointer is null, will return the first sibling.  Behavior similar
   // to an iterator.
   PQNode* QNextChild(PQNode *last);
+
+  void ReplaceChild(PQNode* old_child, PQNode* new_child);
   
   // removes this node from a q-parent and puts toInsert in it's place
   void SwapQ(PQNode *toInsert);
