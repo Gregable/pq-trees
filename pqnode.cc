@@ -1,5 +1,20 @@
 // See PQNode.h
 
+// This file is part of the PQ Tree library.
+//
+// The PQ Tree library is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by the 
+// Free Software Foundation, either version 3 of the License, or (at your
+// option) any later version.
+//
+// The PQ Tree Library is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+// or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+// for more details.
+//
+// You should have received a copy of the GNU General Public License along 
+// with the PQ Tree Library.  If not, see <http://www.gnu.org/licenses/>.
+
 #include <assert.h>
 #include <list>
 #include <map>
@@ -115,6 +130,11 @@ void PQNode::ReplaceChild(PQNode* old_child, PQNode* new_child) {
     }
     ReplaceEndmostChild(old_child, new_child);
   }
+  new_child->parent_ = old_child->parent_;
+  if (new_child->label_ == partial)
+    new_child->parent_->partial_children_.insert(new_child);
+  if (new_child->label_ == full)
+    new_child->parent_->full_children_.insert(new_child);
 }
   
 // Removes this node from a q-parent and puts toInsert in it's place

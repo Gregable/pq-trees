@@ -1,3 +1,18 @@
+// This file is part of the PQ Tree library.
+//
+// The PQ Tree library is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by the 
+// Free Software Foundation, either version 3 of the License, or (at your
+// option) any later version.
+//
+// The PQ Tree Library is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+// or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+// for more details.
+//
+// You should have received a copy of the GNU General Public License along 
+// with the PQ Tree Library.  If not, see <http://www.gnu.org/licenses/>.
+
 #include "pqtree.h"
 
 #include <assert.h>
@@ -267,6 +282,7 @@ bool PQTree::TemplateP4(PQNode* candidate_node) {
     return false;
 
   // Move the full children of |candidate_node| to children of |partial_qnode|.
+  // TODO: Lots of redundancy between lines 271-287, 326-342, and 345-359.
   if (!candidate_node->full_children_.empty()) {
     PQNode *full_children_root;
     if (candidate_node->full_children_.size() == 1) {
@@ -287,11 +303,11 @@ bool PQTree::TemplateP4(PQNode* candidate_node) {
 
   // If |candidate_node| now only has one child, get rid of |candidate_node|.
   if (candidate_node->circular_link_.size() == 1) {
-    partial_qnode->parent_ = candidate_node->parent_;
     if (candidate_node->parent_) {
       candidate_node->parent_->ReplaceChild(candidate_node, partial_qnode);
     } else {
       root_ = partial_qnode;
+      partial_qnode->parent_ = NULL;
     }
     candidate_node->circular_link_.clear();
     delete candidate_node;
@@ -300,11 +316,13 @@ bool PQTree::TemplateP4(PQNode* candidate_node) {
 }
 
 bool PQTree::TemplateP5(PQNode* candidate_node) {
-  //check against the pattern
+  // P4's pattern is a P-Node not at the root of the perinent subtree
+  // containing one partial child and any number of empty/full children.
   if (candidate_node->type_ != PQNode::pnode ||
       candidate_node->partial_children_.size() != 1)
     return false;
 
+  // |partial_qnode| will become the pertinent subtree root after replacement.
   PQNode* partial_qnode = *candidate_node->partial_children_.begin();
   assert(partial_qnode->type_ == PQNode::qnode);
   PQNode* empty_child = partial_qnode->EndmostChildWithLabel(PQNode::empty);
@@ -314,30 +332,14 @@ bool PQTree::TemplateP5(PQNode* candidate_node) {
   if (!empty_child || !full_child)
     return false;
 
-  // |partial_qnode| will become the root of the pertinent subtree after the
-  // replacement.
-  PQNode* the_parent = candidate_node->parent_;
-  partial_qnode->parent_ = candidate_node->parent_;
+  // Move partial_qnode from candidate_node's child to it's parent's child
+  candidate_node->parent_->ReplaceChild(candidate_node, partial_qnode);
   partial_qnode->pertinent_leaf_count = candidate_node->pertinent_leaf_count;
-  partial_qnode->label_ = PQNode::partial;
-  the_parent->partial_children_.insert(partial_qnode);
-  // remove partial_qnode from candidate_node's list of children
   candidate_node->circular_link_.remove(partial_qnode);
-  candidate_node->partial_children_.erase(partial_qnode);
-
-  if (!candidate_node->immediate_siblings_[0]) {
-    the_parent->ReplaceCircularLink(candidate_node, partial_qnode);
-  } else {
-    for (int i = 0; i < 2 && candidate_node->immediate_siblings_[i]; ++i) {
-      PQNode *sibling = candidate_node->immediate_siblings_[i];
-      sibling->ReplaceImmediateSibling(candidate_node, partial_qnode);
-    }
-    the_parent->ReplaceEndmostChild(candidate_node, partial_qnode);
-  }
 
   // Move the full children of |candidate_node| to children of |partial_qnode|.
-  if (candidate_node->full_children_.size() > 0) {
-    PQNode *full_children_root=NULL;
+  if (!candidate_node->full_children_.empty()) {
+    PQNode *full_children_root;
     if (candidate_node->full_children_.size() == 1) {
       full_children_root = *candidate_node->full_children_.begin();
       candidate_node->circular_link_.remove(full_children_root);
@@ -347,7 +349,6 @@ bool PQTree::TemplateP5(PQNode* candidate_node) {
       full_children_root->label_ = PQNode::full;
       candidate_node->MoveFullChildren(full_children_root);
     }
-    candidate_node->full_children_.clear();
 
     full_children_root->parent_ = partial_qnode;
     full_child->AddImmediateSibling(full_children_root);
@@ -357,7 +358,7 @@ bool PQTree::TemplateP5(PQNode* candidate_node) {
 
   // If candidate_node still has some empty children, insert them
   if (candidate_node->ChildCount()) {
-    PQNode *empty_children_root = NULL;
+    PQNode *empty_children_root;
     if (candidate_node->ChildCount() == 1) {
       empty_children_root = empty_sibling;
     } else {
@@ -365,6 +366,7 @@ bool PQTree::TemplateP5(PQNode* candidate_node) {
       empty_children_root->label_ = PQNode::empty;
       empty_children_root->ClearImmediateSiblings();
     }
+
     empty_children_root->parent_ = partial_qnode;
     empty_child->AddImmediateSibling(empty_children_root);
     empty_children_root->AddImmediateSibling(empty_child);
