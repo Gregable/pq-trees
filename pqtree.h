@@ -108,7 +108,10 @@ class PQTree {
   PQTree(set<int> S);
   PQTree(const PQTree& to_copy);
   ~PQTree();
-  
+ 
+  // Returns the root PQNode used for exploring the tree.
+  PQNode* Root();
+ 
   // Mostly for debugging purposes, Prints the tree to standard out
   string Print();
   

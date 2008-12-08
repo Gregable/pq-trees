@@ -27,6 +27,27 @@
 
 using namespace std;
 
+PQNode::PQNode_types PQNode::Type() {
+  return type_;
+}
+
+int PQNode::LeafValue() {
+  assert(type_ == leaf);
+  return leaf_value_;
+}
+
+void PQNode::Children(vector<PQNode*> *children) {
+  assert(children->empty());
+  if (type_ == pnode) {
+    for (list<PQNode*>::const_iterator i = circular_link_.begin();
+	 i != circular_link_.end(); ++i)
+      children->push_back(*i);
+  } else if (type_ == qnode) {
+    for(QNodeChildrenIterator qit(this); !qit.IsDone(); qit.Next())
+      children->push_back(qit.Current());
+  }
+} 
+
 int PQNode::ChildCount() {
   return circular_link_.size();
 }
@@ -43,7 +64,7 @@ PQNode::PQNode(const PQNode& to_copy) {
 
 void PQNode::Copy(const PQNode& to_copy) {
   // Copy the easy stuff
-  leaf_value            = to_copy.leaf_value;
+  leaf_value_            = to_copy.leaf_value_;
   pertinent_leaf_count  = to_copy.pertinent_leaf_count;
   pertinent_child_count = to_copy.pertinent_child_count;
   type_                  = to_copy.type_;
@@ -152,7 +173,7 @@ void PQNode::SwapQ(PQNode *toInsert) {
 }
   
 PQNode::PQNode(int value) {
-  leaf_value             = value;
+  leaf_value_             = value;
   type_                  = leaf;
   parent_                = NULL;
   label_                 = empty;
@@ -332,7 +353,7 @@ void PQNode::ReplaceCircularLink(PQNode* old_child, PQNode* new_child) {
 // TODO: Could probably be implemented better using function pointers.
 void PQNode::FindLeaves(map<int, PQNode*> &leafAddress) {
   if (type_ == leaf) {
-    leafAddress[leaf_value] = this;
+    leafAddress[leaf_value_] = this;
   } else if (type_ == pnode) {
     // Recurse by asking each child in circular_link_ to find it's leaves.
     for (list<PQNode*>::iterator i = circular_link_.begin();
@@ -353,7 +374,7 @@ void PQNode::FindLeaves(map<int, PQNode*> &leafAddress) {
   
 void PQNode::FindFrontier(list<int> &ordering) {
   if (type_ == leaf) {
-    ordering.push_back(leaf_value);
+    ordering.push_back(leaf_value_);
   } else if (type_ == pnode) {
     for(list<PQNode*>::iterator i = circular_link_.begin();
         i != circular_link_.end();i++)
@@ -402,7 +423,7 @@ void PQNode::Reset() {
 void PQNode::Print(string *out) {
   if (type_ == leaf) {
     char value_str[10];
-    sprintf(value_str, "%d", leaf_value);
+    sprintf(value_str, "%d", leaf_value_);
     *out += value_str;
   } else if (type_ == pnode) {
     *out += "(";

@@ -37,8 +37,15 @@ class PQNode {
   enum PQNode_marks  {unmarked, queued, blocked, unblocked};
   enum PQNode_labels {empty, full, partial};
 
-  // Label's this node as full, updating the parent if needed.
-  void LabelAsFull();
+  // Returns the type of the current node, an enum of type PQNode_types.
+  PQNode_types Type();
+
+  // Returns the value of the leaf node.  Fails assertion if not leaf node.
+  int LeafValue();
+
+  // Returns all of this Node's children if it has any.
+  // Return Value is the |children| argument.
+  void Children(vector<PQNode*> *children);
 
  private:
   /***** Used by P Nodes only *****/
@@ -143,7 +150,7 @@ class PQNode {
   int pertinent_leaf_count;
 
   // The value of the PQNode if it is a leaf.
-  int leaf_value;
+  int leaf_value_;
 
   // Makes a deep copy of a node, sets this to be it's parent and returns copy.
   PQNode* CopyAsChild(const PQNode& to_copy);
@@ -176,6 +183,9 @@ class PQNode {
   // Deep destructor.
   ~PQNode();
   
+  // Label's this node as full, updating the parent if needed.
+  void LabelAsFull();
+
   // Walks the tree to build a map from values to leaf pointers.
   void FindLeaves(map<int, PQNode*> &leafAddress);
   

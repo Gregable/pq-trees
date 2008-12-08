@@ -687,6 +687,10 @@ PQTree::PQTree(set<int> reduction_set) {
   }
 }
 
+PQNode* PQTree::Root() {
+  return root_;
+}
+
 string PQTree::Print() {
   string out;
   root_->Print(&out);
