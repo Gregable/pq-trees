@@ -3,7 +3,7 @@
 // This file is part of the PQ Tree library.
 //
 // The PQ Tree library is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by the 
+// it under the terms of the GNU General Public License as published by the
 // Free Software Foundation, either version 3 of the License, or (at your
 // option) any later version.
 //
@@ -12,10 +12,9 @@
 // or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 // for more details.
 //
-// You should have received a copy of the GNU General Public License along 
+// You should have received a copy of the GNU General Public License along
 // with the PQ Tree Library.  If not, see <http://www.gnu.org/licenses/>.
 
- 
 #include <algorithm>
 #include <set>
 
@@ -25,10 +24,10 @@ class SetMethods {
  public:
   // Computes the set intersection between sets |A| and |B|.
   template <class T> static set<T> SetIntersection(const set<T>& A,
-						   const set<T>& B) {
+                                                   const set<T>& B) {
     set<T> out;
     set_intersection(A.begin(), A.end(), B.begin(), B.end(),
-		     inserter(out, out.begin()));
+                     inserter(out, out.begin()));
     return out;
   }
 
@@ -42,7 +41,7 @@ class SetMethods {
 
   // Searches for |needle| in |haystack|.
   template <class T> static bool SetFind(const set<T>& haystack,
-					 const T& needle) {
+                                         const T& needle) {
     return haystack.count(needle) > 0;
   }
 

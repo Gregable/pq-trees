@@ -6,7 +6,7 @@
 // This file is part of the PQ Tree library.
 //
 // The PQ Tree library is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by the 
+// it under the terms of the GNU General Public License as published by the
 // Free Software Foundation, either version 3 of the License, or (at your
 // option) any later version.
 //
@@ -15,7 +15,7 @@
 // or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 // for more details.
 //
-// You should have received a copy of the GNU General Public License along 
+// You should have received a copy of the GNU General Public License along
 // with the PQ Tree Library.  If not, see <http://www.gnu.org/licenses/>.
 
 
@@ -48,26 +48,25 @@ bool fuzztest() {
     }
     cout << "\n";
     for (int j = 0; j < REDUCTIONS; ++j) {
-
       // Then we choose a random starting point in the list and a random length
       int start = rand() % (TREE_SIZE - 2);
       int size = min(rand() % 10 + 2, TREE_SIZE - start);
 
       set<int> reduction;
       for (int k = start; k < start + size; ++k) {
-	reduction.insert(frontier[k]);
-	cout << frontier[k] << " ";
+        reduction.insert(frontier[k]);
+        cout << frontier[k] << " ";
       }
       cout << endl;
       if (!tree.Reduce(reduction)) {
-	return false;
+        return false;
       }
       cout << tree.Print() << endl;
     }
   }
   return true;
 }
-  
+
 // Returns 0 if fuzztest succeeded, 1 if a failure was detected.
 int main(int argc, char **argv)
 {

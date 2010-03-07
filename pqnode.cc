@@ -133,7 +133,7 @@ void PQNode::LabelAsFull() {
 
 // Return the next child in the immediate_siblings_ chain given a last pointer.
 // If last pointer is null, will return the first sibling.
-PQNode* PQNode::QNextChild(PQNode *last) {
+PQNode* PQNode::QNextChild(PQNode *last) const {
   if (immediate_siblings_[0] == last) {
     return immediate_siblings_[1];
   } else {
@@ -273,10 +273,10 @@ void PQNode::ClearImmediateSiblings() {
     immediate_siblings_[i] = NULL;
 }
 
-int PQNode::ImmediateSiblingCount() {
+int PQNode::ImmediateSiblingCount() const {
   int count = 0;
-  for (int i = 0; i < 2 && immediate_siblings_[i]; ++i)
-    count ++;
+  for (int i = 0; (i < 2) && immediate_siblings_[i]; ++i)
+    ++count;
   return count;
 }
 
@@ -426,14 +426,14 @@ void PQNode::Reset() {
 
 // Walks the tree from the top and prints the tree structure to the string out.
 // Used primarily for debugging purposes.
-void PQNode::Print(string *out) {
+void PQNode::Print(string *out) const {
   if (type_ == leaf) {
     char value_str[10];
     sprintf(value_str, "%d", leaf_value_);
     *out += value_str;
   } else if (type_ == pnode) {
     *out += "(";
-    for (list<PQNode*>::iterator i = circular_link_.begin();
+    for (list<PQNode*>::const_iterator i = circular_link_.begin();
          i != circular_link_.end(); i++) {
       (*i)->Print(out);
       // Add a space if there are more elements remaining.

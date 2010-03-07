@@ -1,6 +1,6 @@
 /*
 PQ-Tree class based on the paper "Testing for the Consecutive Onces Property,
-Interval Graphs, and Graph Planarity Using PQ-Tree Algorithms" by Kellog S. 
+Interval Graphs, and Graph Planarity Using PQ-Tree Algorithms" by Kellog S.
 Booth and George S. Lueker in the Journal of Computer and System Sciences 13,
 335-379 (1976)
 */
@@ -8,7 +8,7 @@ Booth and George S. Lueker in the Journal of Computer and System Sciences 13,
 // This file is part of the PQ Tree library.
 //
 // The PQ Tree library is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by the 
+// it under the terms of the GNU General Public License as published by the
 // Free Software Foundation, either version 3 of the License, or (at your
 // option) any later version.
 //
@@ -17,7 +17,7 @@ Booth and George S. Lueker in the Journal of Computer and System Sciences 13,
 // or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 // for more details.
 //
-// You should have received a copy of the GNU General Public License along 
+// You should have received a copy of the GNU General Public License along
 // with the PQ Tree Library.  If not, see <http://www.gnu.org/licenses/>.
 
 
@@ -37,10 +37,10 @@ using namespace std;
 
 class PQTree {
   private:
-  
+
   // Root node of the PQTree
   PQNode *root_;
-  
+
   // The number of blocks of blocked nodes during the 1st pass
   int block_count_;
 
@@ -92,7 +92,7 @@ class PQTree {
   bool TemplateP4(PQNode* candidate_node);
   bool TemplateP5(PQNode* candidate_node);
   bool TemplateP6(PQNode* candidate_node);
-  
+
   // This procedure is the first pass of the Booth&Leuker PQTree algorithm
   // It processes the pertinent subtree of the PQ-Tree to determine the mark
   // of every node in that subtree
@@ -101,20 +101,20 @@ class PQTree {
   bool Bubble(set<int> S);
 
   bool ReduceStep(set<int> S);
-        
- public:  
+
+ public:
   // Default constructor - constructs a tree using a set
   // Only reductions using elements of that set will succeed
   PQTree(set<int> S);
   PQTree(const PQTree& to_copy);
   ~PQTree();
- 
+
   // Returns the root PQNode used for exploring the tree.
   PQNode* Root();
- 
+
   // Mostly for debugging purposes, Prints the tree to standard out
-  string Print();
-  
+  string Print() const;
+
   // Cleans up pointer mess caused by having a pseudonode
   void CleanPseudo();
 
@@ -127,24 +127,24 @@ class PQTree {
   //reductions fail
   bool Reduce(set<int> S);
   bool ReduceAll(list<set<int> > L);
-  
+
   // Returns 1 possible frontier, or ordering preserving the reductions
   list<int> Frontier();
-  
+
   // Assignment operator
-  PQTree& operator=(const PQTree& to_copy);  
+  PQTree& operator=(const PQTree& to_copy);
 
   // Copies to_copy.  Used for the copy constructor and assignment operator.
   void CopyFrom(const PQTree& to_copy);
-  
-  
+
+
   // Returns a frontier not including leaves that were not a part of any
   // reduction
   list<int> ReducedFrontier();
-  
+
   // Returns the reductions that have been performed on this tree.
   list<set<int> > GetReductions();
-  
+
   // Returns the set of all elements on which a reduction was performed.
   set<int> GetContained();
 };

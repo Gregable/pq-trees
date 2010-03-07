@@ -700,7 +700,7 @@ PQNode* PQTree::Root() {
   return root_;
 }
 
-string PQTree::Print() {
+string PQTree::Print() const {
   string out;
   root_->Print(&out);
   return out;

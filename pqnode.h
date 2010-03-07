@@ -3,7 +3,7 @@
 // This file is part of the PQ Tree library.
 //
 // The PQ Tree library is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by the 
+// it under the terms of the GNU General Public License as published by the
 // Free Software Foundation, either version 3 of the License, or (at your
 // option) any later version.
 //
@@ -12,7 +12,7 @@
 // or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 // for more details.
 //
-// You should have received a copy of the GNU General Public License along 
+// You should have received a copy of the GNU General Public License along
 // with the PQ Tree Library.  If not, see <http://www.gnu.org/licenses/>.
 
 #ifndef PQNODE_H
@@ -49,11 +49,11 @@ class PQNode {
 
  private:
   /***** Used by P Nodes only *****/
-  
+
   // A doubly-linked of links which form the children of a p-node, the order
   // of the list is arbitrary.
   list<PQNode*> circular_link_;
-  
+
   // A count of the number of children used by a node.
   int ChildCount();
 
@@ -62,12 +62,12 @@ class PQNode {
 
   // Moves the full children of this node to children of |new_node|.
   void MoveFullChildren(PQNode* new_node);
-  
+
   // Replaces the circular_link pointer of |old_child| with |new_child|.
   void ReplaceCircularLink(PQNode* old_child, PQNode* new_child);
-  
+
   /***** Used by Q Nodes only *****/
-  
+
   // A set containing the two endmost children of a Q-node
   PQNode *endmost_children_[2];
   PQNode *pseudo_neighbors_[2];
@@ -77,7 +77,7 @@ class PQNode {
 
   // Returns the first endmost child with a given label or NULL.
   PQNode* EndmostChildWithLabel(PQNode_labels label);
-  
+
   // Returns the first immediate sibling with a given label or NULL.
   PQNode* ImmediateSiblingWithLabel(PQNode_labels label);
 
@@ -86,7 +86,7 @@ class PQNode {
 
   // Adds an immediate sibling to this node.
   void AddImmediateSibling(PQNode* sibling);
-  
+
   // Adds an immediate sibling to this node.
   void RemoveImmediateSibling(PQNode* sibling);
 
@@ -94,41 +94,41 @@ class PQNode {
   void ClearImmediateSiblings();
 
   // Returns the number of immediate siblings this node has (0, 1, or 2).
-  int ImmediateSiblingCount();
+  int ImmediateSiblingCount() const;
 
   // Replaces the |endmost_children_| pointer to |old_child| with |new_child|.
   void ReplaceEndmostChild(PQNode* old_child, PQNode* new_child);
-  
+
   // Replaces the immediate sibling of |old_child| with |new_child|.
   void ReplaceImmediateSibling(PQNode* old_child, PQNode* new_child);
 
   // Replaces the partial child |old_child| with |new_child|.
   void ReplacePartialChild(PQNode* old_child, PQNode* new_child);
 
-  // Forces a Q-Node to "forget" it's pointers to it's endmost children.  
+  // Forces a Q-Node to "forget" it's pointers to it's endmost children.
   // Useful if you want to delete a Q-Node but not it's children.
   void ForgetChildren();
 
   // Returns true if all of the full and partial children of this node are
   // consecutive, with the partial children on the outside.
   bool ConsecutiveFullPartialChildren();
-  
+
   /***** Used by Both Node types *****/
-  
+
   // A set containing all the children of a node currently known to be full.
   set<PQNode*> full_children_;
-  
+
   // A set containing all the children of a node currently known to be partial.
   set<PQNode*> partial_children_;
-  
+
   // Only children of Q nodes have more than 0 immediate siblings.  Stores the
   // siblings to either side of this node in its parent's children.  One or both
-  // siblings may be NULL.  
+  // siblings may be NULL.
   PQNode *immediate_siblings_[2];
 
   // Label is an indication of whether the node is empty, full, or partial
   enum PQNode_labels label_;
-  
+
   // Mark is a designation used during the first pass of the reduction
   // algorithm.  Every node is initially unmarked.  It is marked
   // queued when it is placed onto the queue during the bubbling up.
@@ -157,48 +157,48 @@ class PQNode {
 
   // Makes a deep copy of copy.
   void Copy(const PQNode& copy);
-  
+
   // deep assignment operator
   PQNode& operator=(const PQNode& to_copy);
-  
+
   // Return the next child in the immediate_siblings chain given a last pointer
   // if last pointer is null, will return the first sibling.  Behavior similar
   // to an iterator.
-  PQNode* QNextChild(PQNode *last);
+  PQNode* QNextChild(PQNode *last) const;
 
   void ReplaceChild(PQNode* old_child, PQNode* new_child);
-  
+
   // removes this node from a q-parent and puts toInsert in it's place
   void SwapQ(PQNode *toInsert);
-  
+
   // deep copy constructor
   PQNode(const PQNode& to_copy);
-    
+
   // Constructor for a leaf PQNode.
   PQNode(int value);
-  
+
   // Constructor for non-leaf PQNode.
   PQNode();
-  
+
   // Deep destructor.
   ~PQNode();
-  
+
   // Label's this node as full, updating the parent if needed.
   void LabelAsFull();
 
   // Walks the tree to build a map from values to leaf pointers.
   void FindLeaves(map<int, PQNode*> &leafAddress);
-  
+
   // Walks the tree to find it's Frontier, returns one possible ordering.
   void FindFrontier(list<int> &ordering);
-  
+
   // Resets a bunch of temporary variables after the reduce walks
   void Reset();
-  
+
   // Walks the tree and prints it's structure to |out|.  P-nodes are
   // represented as ( ), Q-nodes as [ ], and leafs by their integer id. Used
   // primarily for debugging purposes
-  void Print(string *out);
+  void Print(string *out) const;
 };
 
 // Q-Nodes have an unusual structure that makes iterating over their children
@@ -212,7 +212,7 @@ class PQNode {
 //
 // Usage:
 //   for (QNodeChildrenIterator it(candidate_node); !it.IsDone(); it.Next()) {
-//     Process(it.Current()); 
+//     Process(it.Current());
 //   }
 class QNodeChildrenIterator {
  public:

@@ -1,7 +1,7 @@
 // This file is part of the PQ Tree library.
 //
 // The PQ Tree library is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by the 
+// it under the terms of the GNU General Public License as published by the
 // Free Software Foundation, either version 3 of the License, or (at your
 // option) any later version.
 //
@@ -10,9 +10,10 @@
 // or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 // for more details.
 //
-// You should have received a copy of the GNU General Public License along 
+// You should have received a copy of the GNU General Public License along
 // with the PQ Tree Library.  If not, see <http://www.gnu.org/licenses/>.
 
+#include <assert.h>
 #include <iostream>
 #include <set>
 #include "pqnode.h"
@@ -29,22 +30,22 @@ string ReadableType(PQNode::PQNode_types type) {
   return "unknown";
 }
 
-void testbed() {
+void TestBed() {
   set<int> S;
-  for(int i=1;i<9;i++)
+  for (int i = 1; i < 9; i++)
     S.insert(i);
   PQTree P(S);
 
-  cout << "PQ Tree with 8 elements and no reductions" << endl;  
+  cout << "PQ Tree with 8 elements and no reductions" << endl;
   cout << P.Print() << endl;
-  
+
   cout << "Reducing by set {4, 3}" << endl;
   S.clear();
   S.insert(4);
   S.insert(3);
   cout << P.Reduce(S) << endl;
   cout << P.Print() << endl;
-  
+
   cout << "Reducing by set {4, 3, 6}" << endl;
   S.clear();
   S.insert(6);
@@ -52,7 +53,7 @@ void testbed() {
   S.insert(3);
   cout << P.Reduce(S) << endl;
   cout << P.Print() << endl;
-  
+
   cout << "Reducing by set {4, 3, 5}" << endl;
   S.clear();
   S.insert(4);
@@ -60,28 +61,28 @@ void testbed() {
   S.insert(5);
   cout << P.Reduce(S) << endl;
   cout << P.Print() << endl;
-    
+
   cout << "Reducing by set {4, 5}" << endl;
   S.clear();
   S.insert(4);
   S.insert(5);
   cout << P.Reduce(S) << endl;
   cout << P.Print() << endl;
-  
+
   cout << "Reducing by set {2, 6}" << endl;
   S.clear();
   S.insert(2);
   S.insert(6);
   cout << P.Reduce(S) << endl;
   cout << P.Print() << endl;
-  
+
   cout << "Reducing by set {1, 2}" << endl;
   S.clear();
   S.insert(1);
   S.insert(2);
   cout << P.Reduce(S) << endl;
   cout << P.Print() << endl;
-  
+
   cout << "Reducing by set {4, 5}" << endl;
   S.clear();
   S.insert(4);
@@ -97,7 +98,7 @@ void testbed() {
   root->Children(&children);
   for (int i = 0; i < children.size(); ++i) {
     PQNode* child = children[i];
-    cout << "Child " << i+1 << " Type: " << ReadableType(child->Type());
+    cout << "Child " << i + 1 << " Type: " << ReadableType(child->Type());
     if (child->Type() == PQNode::leaf) {
       cout << " Value: " << child->LeafValue() << endl;
     } else {
@@ -105,18 +106,18 @@ void testbed() {
       vector<PQNode*> grandchildren;
       child->Children(&grandchildren);
       for (int j = 0; j < grandchildren.size(); ++j) {
-	PQNode* grandchild = grandchildren[j];
-        cout << "GrandChild " << j+1 << " Type: " 
-	     << ReadableType(grandchild->Type());
+        PQNode* grandchild = grandchildren[j];
+        cout << "GrandChild " << j + 1 << " Type: "
+             << ReadableType(grandchild->Type());
         if (grandchild->Type() == PQNode::leaf)
-	  cout << " Value: " << grandchild->LeafValue();
-	cout << endl;
+          cout << " Value: " << grandchild->LeafValue();
+          cout << endl;
       }
     }
   }
   cout << endl;
- 
-  // Now, we perform a reduction that will fail. 
+
+  // Now, we perform a reduction that will fail.
   cout << "Reducing by set {5, 3} - will fail" << endl;
   S.clear();
   S.insert(5);
@@ -124,10 +125,56 @@ void testbed() {
   cout << P.Reduce(S) << endl;
   cout << P.Print() << endl;
 }
-  
 
-int main(int argc, char **argv) {
-  testbed();
+void ReduceBy(const set<int>& reduce_set, PQTree* tree) {
+  cout << "Reducing by set { ";
+  for (set<int>::iterator i = reduce_set.begin(); i != reduce_set.end(); ++i)
+    cout << *i << " ";
+  cout << "}" << endl;
+
+  assert (tree->Reduce(reduce_set));
+  cout << tree->Print() << endl;
 }
 
+void TestBed2() {
+  set<int> S;
+  for (int i = 0; i < 7; i++)
+    //if (i != 5)
+    S.insert(i);
+  PQTree tree(S);
 
+  S.clear();
+  S.insert(4);
+  S.insert(1);
+  ReduceBy(S, &tree);
+
+  S.clear();
+  S.insert(3);
+  S.insert(0);
+  S.insert(2);
+  S.insert(6);
+  S.insert(4);
+  ReduceBy(S, &tree);
+
+  S.clear();
+  S.insert(0);
+  S.insert(2);
+  S.insert(6);
+  S.insert(4);
+  ReduceBy(S, &tree);
+
+  S.clear();
+  S.insert(2);
+  S.insert(6);
+  ReduceBy(S, &tree);
+
+  S.clear();
+  S.insert(0);
+  S.insert(2);
+  ReduceBy(S, &tree);
+  cout << tree.Print() << endl;
+}
+
+int main(int argc, char **argv) {
+  TestBed2();
+}
