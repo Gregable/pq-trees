@@ -180,15 +180,15 @@ bool PQTree::TemplateQ3(PQNode* candidate_node) {
 // pertinent root and not try to update its parent whose pointer is possibly
 // invalid.
 bool PQTree::TemplateP1(PQNode* candidate_node, bool is_reduction_root) {
-    // P1's pattern is a P-Node with all full children.
-    if (candidate_node->type_ != PQNode::pnode ||
-        candidate_node->full_children_.size() != candidate_node->ChildCount())
-      return false;
+  // P1's pattern is a P-Node with all full children.
+  if (candidate_node->type_ != PQNode::pnode ||
+      candidate_node->full_children_.size() != candidate_node->ChildCount())
+    return false;
 
-    candidate_node->label_ = PQNode::full;
-    if (!is_reduction_root)
-      candidate_node->parent_->full_children_.insert(candidate_node);
-    return true;
+  candidate_node->label_ = PQNode::full;
+  if (!is_reduction_root)
+    candidate_node->parent_->full_children_.insert(candidate_node);
+  return true;
 }
 
 bool PQTree::TemplateP2(PQNode* candidate_node) {
@@ -274,7 +274,6 @@ bool PQTree::TemplateP4(PQNode* candidate_node) {
     return false;
 
   PQNode* partial_qnode = *candidate_node->partial_children_.begin();
-  assert(partial_qnode->type_ == PQNode::qnode);
   PQNode* empty_child = partial_qnode->EndmostChildWithLabel(PQNode::empty);
   PQNode* full_child = partial_qnode->EndmostChildWithLabel(PQNode::full);
 
@@ -286,7 +285,7 @@ bool PQTree::TemplateP4(PQNode* candidate_node) {
   if (!candidate_node->full_children_.empty()) {
     PQNode *full_children_root;
     if (candidate_node->full_children_.size() == 1) {
-      full_children_root = *candidate_node->full_children_.begin();
+      full_children_root = *(candidate_node->full_children_.begin());
       candidate_node->circular_link_.remove(full_children_root);
     } else {
       full_children_root = new PQNode;
@@ -306,8 +305,15 @@ bool PQTree::TemplateP4(PQNode* candidate_node) {
     if (candidate_node->parent_) {
       candidate_node->parent_->ReplaceChild(candidate_node, partial_qnode);
     } else {
-      root_ = partial_qnode;
       partial_qnode->parent_ = NULL;
+      if (root_ == candidate_node) {
+        root_ = partial_qnode;
+      } else {
+        for (int i = 0; i < 2; ++i) {
+          PQNode *sibling = candidate_node->immediate_siblings_[i];
+          sibling->ReplaceImmediateSibling(candidate_node, partial_qnode);
+        }
+      }
     }
     candidate_node->circular_link_.clear();
     delete candidate_node;
@@ -658,6 +664,9 @@ void PQTree::CleanPseudo() {
           pseudonode_->pseudo_neighbors_[i]);
       pseudonode_->pseudo_neighbors_[i]->AddImmediateSibling(
           pseudonode_->endmost_children_[i]);
+    }
+    for (int i = 0; i < 2; ++i) {
+      pseudonode_->endmost_children_[i]->parent_ = NULL;
     }
 
     pseudonode_->ForgetChildren();

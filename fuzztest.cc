@@ -25,9 +25,9 @@
 #include <vector>
 #include "pqtree.h"
 
-int ITERATIONS = 100;  // Number of fuzztest iterations to run.
-int REDUCTIONS = 20;  // Number of reductions to apply on each run
-int TREE_SIZE = 10;   // Size of the PQ-Tree in each fuzztest.
+int ITERATIONS = 10000;  // Number of fuzztest iterations to run.
+int REDUCTIONS = 20;     // Number of reductions to apply on each run
+int TREE_SIZE = 10;      // Size of the PQ-Tree in each fuzztest.
 
 bool fuzztest() {
   for (int i = 0; i < ITERATIONS; ++i) {
@@ -77,5 +77,3 @@ int main(int argc, char **argv)
   }
   return true;
 }
-
-

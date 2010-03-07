@@ -40,13 +40,13 @@ void PQNode::Children(vector<PQNode*> *children) {
   assert(children->empty());
   if (type_ == pnode) {
     for (list<PQNode*>::const_iterator i = circular_link_.begin();
-	 i != circular_link_.end(); ++i)
+         i != circular_link_.end(); ++i)
       children->push_back(*i);
   } else if (type_ == qnode) {
     for(QNodeChildrenIterator qit(this); !qit.IsDone(); qit.Next())
       children->push_back(qit.Current());
   }
-} 
+}
 
 int PQNode::ChildCount() {
   return circular_link_.size();
@@ -78,6 +78,8 @@ void PQNode::Copy(const PQNode& to_copy) {
   partial_children_.clear();
   full_children_.clear();
   circular_link_.clear();
+  endmost_children_[0] = NULL;
+  endmost_children_[1] = NULL;
   ClearImmediateSiblings();
   ForgetChildren();
 
@@ -91,12 +93,12 @@ void PQNode::Copy(const PQNode& to_copy) {
   if (type_ == qnode) {
     PQNode *current, *last;
     // Pointers to nodes we are going to copy
-    PQNode *curCopy, *lastCopy, *nextCopy;  
+    PQNode *curCopy, *lastCopy, *nextCopy;
     endmost_children_[0] = CopyAsChild(*to_copy.endmost_children_[0]);
     curCopy = to_copy.endmost_children_[0];
     lastCopy = NULL;
     last = endmost_children_[0];
-    
+
     // Get all the intermediate children
     nextCopy = curCopy->QNextChild(lastCopy);
     while (nextCopy != NULL) {
@@ -133,10 +135,10 @@ void PQNode::LabelAsFull() {
 // If last pointer is null, will return the first sibling.
 PQNode* PQNode::QNextChild(PQNode *last) {
   if (immediate_siblings_[0] == last) {
-      return immediate_siblings_[1];
+    return immediate_siblings_[1];
   } else {
     if (!last && 2 == ImmediateSiblingCount()) // occurs at edge of pseudonode.
-        return immediate_siblings_[1];
+      return immediate_siblings_[1];
     return immediate_siblings_[0];
   }
 }
@@ -144,7 +146,7 @@ PQNode* PQNode::QNextChild(PQNode *last) {
 void PQNode::ReplaceChild(PQNode* old_child, PQNode* new_child) {
   if (type_ == pnode) {
     ReplaceCircularLink(old_child, new_child);
-  } else { // qnode
+  } else {  // qnode
     for (int i = 0; i < 2 && old_child->immediate_siblings_[i]; ++i) {
       PQNode *sibling = old_child->immediate_siblings_[i];
       sibling->ReplaceImmediateSibling(old_child, new_child);
@@ -157,7 +159,7 @@ void PQNode::ReplaceChild(PQNode* old_child, PQNode* new_child) {
   if (new_child->label_ == full)
     new_child->parent_->full_children_.insert(new_child);
 }
-  
+
 // Removes this node from a q-parent and puts toInsert in it's place
 void PQNode::SwapQ(PQNode *toInsert) {
   toInsert->pseudochild_ = pseudochild_;
@@ -171,7 +173,7 @@ void PQNode::SwapQ(PQNode *toInsert) {
   ClearImmediateSiblings();
   parent_ = NULL;
 }
-  
+
 PQNode::PQNode(int value) {
   leaf_value_             = value;
   type_                  = leaf;
@@ -180,10 +182,12 @@ PQNode::PQNode(int value) {
   mark_                  = unmarked;
   pertinent_child_count  = 0;
   pertinent_leaf_count   = 0;
+  endmost_children_[0] = NULL;
+  endmost_children_[1] = NULL;
   ClearImmediateSiblings();
   ForgetChildren();
 }
-  
+
 PQNode::PQNode() {
   pseudonode_ = false;
   parent_ = NULL;
@@ -191,6 +195,8 @@ PQNode::PQNode() {
   mark_ = unmarked;
   pertinent_child_count = 0;
   pertinent_leaf_count = 0;
+  endmost_children_[0] = NULL;
+  endmost_children_[1] = NULL;
   ClearImmediateSiblings();
   ForgetChildren();
 }
@@ -206,7 +212,7 @@ PQNode::~PQNode() {
       current = next;
     }
     delete last;
-  } else if (type_ == pnode) {  
+  } else if (type_ == pnode) {
     for (list<PQNode*>::iterator i = circular_link_.begin();
          i != circular_link_.end(); i++)
       delete *i;
@@ -305,7 +311,7 @@ void PQNode::ReplacePartialChild(PQNode* old_child, PQNode* new_child) {
 void PQNode::ForgetChildren() {
   for (int i = 0; i < 2; ++i)
     endmost_children_[i] = NULL;
-}  
+}
 
 bool PQNode::ConsecutiveFullPartialChildren() {
   // Trivial Case:
@@ -349,7 +355,7 @@ void PQNode::ReplaceCircularLink(PQNode* old_child, PQNode* new_child) {
 
 // FindLeaves, FindFrontier, Reset, and Print are very similar recursive
 // functions.  Each is a depth-first walk of the entire tree looking for data
-// at the leaves.  
+// at the leaves.
 // TODO: Could probably be implemented better using function pointers.
 void PQNode::FindLeaves(map<int, PQNode*> &leafAddress) {
   if (type_ == leaf) {
@@ -371,12 +377,12 @@ void PQNode::FindLeaves(map<int, PQNode*> &leafAddress) {
     }
   }
 }
-  
+
 void PQNode::FindFrontier(list<int> &ordering) {
   if (type_ == leaf) {
     ordering.push_back(leaf_value_);
   } else if (type_ == pnode) {
-    for(list<PQNode*>::iterator i = circular_link_.begin();
+    for (list<PQNode*>::iterator i = circular_link_.begin();
         i != circular_link_.end();i++)
       (*i)->FindFrontier(ordering);
   } else if (type_ == qnode) {
@@ -390,14 +396,14 @@ void PQNode::FindFrontier(list<int> &ordering) {
     }
   }
 }
-    
+
 // Resets a bunch of temporary variables after the reduce walks
 void PQNode::Reset() {
   if (type_ == pnode) {
     for (list<PQNode*>::iterator i = circular_link_.begin();
          i != circular_link_.end(); i++)
       (*i)->Reset();
-  } else if(type_ == qnode) {
+  } else if (type_ == qnode) {
     PQNode *last    = NULL;
     PQNode *current = endmost_children_[0];
     while (current) {
@@ -407,7 +413,7 @@ void PQNode::Reset() {
       current = next;
     }
   }
-  
+
   full_children_.clear();
   partial_children_.clear();
   label_                 = empty;
@@ -454,8 +460,8 @@ void PQNode::Print(string *out) {
 
 /***** QNodeChildrenIterator class *****/
 
-QNodeChildrenIterator::QNodeChildrenIterator(PQNode* parent,
-					     PQNode* begin_side) {
+QNodeChildrenIterator::QNodeChildrenIterator(
+    PQNode* parent, PQNode* begin_side) {
   parent_ = parent;
   Reset(begin_side);
 }
