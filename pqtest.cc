@@ -40,7 +40,7 @@ void ReduceBy(const set<int>& reduce_set, PQTree* tree) {
   cout << tree->Print() << endl;
 }
 
-void TestBed() {
+void TestBed1() {
   set<int> S;
   for (int i = 1; i < 9; i++)
     S.insert(i);
@@ -157,9 +157,14 @@ void TestBed2() {
   S.insert(0);
   S.insert(2);
   ReduceBy(S, &tree);
-  cout << tree.Print() << endl;
 }
 
 int main(int argc, char **argv) {
+  cout << "Test Bed 1:" << endl;
+  cout << "-----------------" << endl;
+  TestBed1();
+  cout << endl << endl;
+  cout << "Test Bed 2:" << endl;
+  cout << "-----------------" << endl;
   TestBed2();
 }
