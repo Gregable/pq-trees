@@ -171,6 +171,10 @@ class PQNode {
   // removes this node from a q-parent and puts toInsert in it's place
   void SwapQ(PQNode *toInsert);
 
+  // returns this node's parent (same as parent_ unless this node is a non-end
+  // child of a Q-Node, in which case returns NULL)
+  PQNode* Parent() const;
+
   // deep copy constructor
   PQNode(const PQNode& to_copy);
 
@@ -199,6 +203,8 @@ class PQNode {
   // represented as ( ), Q-nodes as [ ], and leafs by their integer id. Used
   // primarily for debugging purposes
   void Print(string *out) const;
+
+  void Identify() const;
 };
 
 // Q-Nodes have an unusual structure that makes iterating over their children

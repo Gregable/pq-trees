@@ -30,69 +30,65 @@ string ReadableType(PQNode::PQNode_types type) {
   return "unknown";
 }
 
+void ReduceBy(const set<int>& reduce_set, PQTree* tree) {
+  cout << "Reducing by set { ";
+  for (set<int>::iterator i = reduce_set.begin(); i != reduce_set.end(); ++i)
+    cout << *i << " ";
+  cout << "}" << endl;
+
+  assert (tree->Reduce(reduce_set));
+  cout << tree->Print() << endl;
+}
+
 void TestBed() {
   set<int> S;
   for (int i = 1; i < 9; i++)
     S.insert(i);
-  PQTree P(S);
+  PQTree tree(S);
 
   cout << "PQ Tree with 8 elements and no reductions" << endl;
-  cout << P.Print() << endl;
+  cout << tree.Print() << endl;
 
-  cout << "Reducing by set {4, 3}" << endl;
   S.clear();
   S.insert(4);
   S.insert(3);
-  cout << P.Reduce(S) << endl;
-  cout << P.Print() << endl;
+  ReduceBy(S, &tree);
 
-  cout << "Reducing by set {4, 3, 6}" << endl;
   S.clear();
   S.insert(6);
   S.insert(4);
   S.insert(3);
-  cout << P.Reduce(S) << endl;
-  cout << P.Print() << endl;
+  ReduceBy(S, &tree);
 
-  cout << "Reducing by set {4, 3, 5}" << endl;
   S.clear();
   S.insert(4);
   S.insert(3);
   S.insert(5);
-  cout << P.Reduce(S) << endl;
-  cout << P.Print() << endl;
+  ReduceBy(S, &tree);
 
-  cout << "Reducing by set {4, 5}" << endl;
   S.clear();
   S.insert(4);
   S.insert(5);
-  cout << P.Reduce(S) << endl;
-  cout << P.Print() << endl;
+  ReduceBy(S, &tree);
 
-  cout << "Reducing by set {2, 6}" << endl;
   S.clear();
   S.insert(2);
   S.insert(6);
-  cout << P.Reduce(S) << endl;
-  cout << P.Print() << endl;
+  ReduceBy(S, &tree);
 
-  cout << "Reducing by set {1, 2}" << endl;
   S.clear();
   S.insert(1);
   S.insert(2);
-  cout << P.Reduce(S) << endl;
-  cout << P.Print() << endl;
+  ReduceBy(S, &tree);
 
-  cout << "Reducing by set {4, 5}" << endl;
   S.clear();
   S.insert(4);
   S.insert(5);
-  cout << P.Reduce(S) << endl;
-  cout << P.Print() << endl;
+  ReduceBy(S, &tree);
 
   // Lets actually explore the tree manually
   cout << endl;
-  PQNode* root = P.Root();
+  PQNode* root = tree.Root();
   cout << "Root Type: " << ReadableType(root->Type()) << endl;
   vector<PQNode*> children;
   root->Children(&children);
@@ -122,18 +118,8 @@ void TestBed() {
   S.clear();
   S.insert(5);
   S.insert(3);
-  cout << P.Reduce(S) << endl;
-  cout << P.Print() << endl;
-}
-
-void ReduceBy(const set<int>& reduce_set, PQTree* tree) {
-  cout << "Reducing by set { ";
-  for (set<int>::iterator i = reduce_set.begin(); i != reduce_set.end(); ++i)
-    cout << *i << " ";
-  cout << "}" << endl;
-
-  assert (tree->Reduce(reduce_set));
-  cout << tree->Print() << endl;
+  cout << tree.Reduce(S) << endl;
+  cout << tree.Print() << endl;
 }
 
 void TestBed2() {

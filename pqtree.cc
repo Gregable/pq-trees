@@ -1,7 +1,7 @@
 // This file is part of the PQ Tree library.
 //
 // The PQ Tree library is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by the 
+// it under the terms of the GNU General Public License as published by the
 // Free Software Foundation, either version 3 of the License, or (at your
 // option) any later version.
 //
@@ -10,7 +10,7 @@
 // or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 // for more details.
 //
-// You should have received a copy of the GNU General Public License along 
+// You should have received a copy of the GNU General Public License along
 // with the PQ Tree Library.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "pqtree.h"
@@ -97,7 +97,7 @@ bool PQTree::TemplateQ1(PQNode* candidate_node) {
 
 bool PQTree::TemplateQ2(PQNode* candidate_node) {
   // Q2's pattern is a Q-Node that either:
-  // 1) contains consecutive full children with one end of the consecutive 
+  // 1) contains consecutive full children with one end of the consecutive
   //    ordering being one of |candidate_node|'s |endmost_children|, also full.
   // 2) contains a single partial child that is one of |candidate_node|'s
   //    |endmost_children|.
@@ -111,12 +111,12 @@ bool PQTree::TemplateQ2(PQNode* candidate_node) {
 
   bool has_partial = candidate_node->partial_children_.size() > 0;
   bool has_full = candidate_node->full_children_.size() > 0;
-  
+
   if (has_full && !candidate_node->EndmostChildWithLabel(PQNode::full))
     return false;
   if (!has_full && !candidate_node->EndmostChildWithLabel(PQNode::partial))
     return false;
-  
+
   // If there is a partial child, merge it's children into the candidate_node.
   if (has_partial) {
     PQNode* to_merge = *candidate_node->partial_children_.begin();
@@ -143,7 +143,7 @@ bool PQTree::TemplateQ2(PQNode* candidate_node) {
 bool PQTree::TemplateQ3(PQNode* candidate_node) {
   // Q3's pattern is a Q-Node that contains 0-2 partial children.  It can
   // contain any number of empty and full children, but any full children must
-  // be consecutive and sandwiched between any partial children.  Unlike Q2, 
+  // be consecutive and sandwiched between any partial children.  Unlike Q2,
   // the consecutive full and partial children need not be endmost children.
   if (candidate_node->type_ != PQNode::qnode ||
       candidate_node->partial_children_.size() > 2 ||
@@ -157,12 +157,12 @@ bool PQTree::TemplateQ3(PQNode* candidate_node) {
     for (int i = 0; i < 2; ++i) {
       PQNode* sibling = to_merge->immediate_siblings_[i];
       if (sibling) {
-	PQNode* child = to_merge->EndmostChildWithLabel(sibling->label_);
-	if (!child)
-	  child = to_merge->EndmostChildWithLabel(PQNode::full);
+        PQNode* child = to_merge->EndmostChildWithLabel(sibling->label_);
+        if (!child)
+          child = to_merge->EndmostChildWithLabel(PQNode::full);
         sibling->ReplaceImmediateSibling(to_merge, child);
       } else {
-	PQNode* empty_child = to_merge->EndmostChildWithLabel(PQNode::empty);
+        PQNode* empty_child = to_merge->EndmostChildWithLabel(PQNode::empty);
         empty_child->parent_ = candidate_node;
         candidate_node->ReplaceEndmostChild(to_merge, empty_child);
       }
@@ -302,7 +302,7 @@ bool PQTree::TemplateP4(PQNode* candidate_node) {
 
   // If |candidate_node| now only has one child, get rid of |candidate_node|.
   if (candidate_node->circular_link_.size() == 1) {
-    if (candidate_node->parent_) {
+    if (candidate_node->Parent()) {
       candidate_node->parent_->ReplaceChild(candidate_node, partial_qnode);
     } else {
       partial_qnode->parent_ = NULL;
@@ -387,8 +387,7 @@ bool PQTree::TemplateP5(PQNode* candidate_node) {
   return true;
 }
 
-bool PQTree::TemplateP6(PQNode* candidate_node)
-{
+bool PQTree::TemplateP6(PQNode* candidate_node) {
   if (candidate_node->type_ != PQNode::pnode ||
       candidate_node->partial_children_.size() != 2)
     return false;
@@ -418,7 +417,7 @@ bool PQTree::TemplateP6(PQNode* candidate_node)
       full_children_root = new PQNode;
       full_children_root->type_ = PQNode::pnode;
       full_children_root->label_ = PQNode::full;
-      candidate_node->MoveFullChildren(full_children_root); 
+      candidate_node->MoveFullChildren(full_children_root);
     }
     full_children_root->parent_ = partial_qnode1;
     full_child2->parent_ = partial_qnode1;
@@ -452,14 +451,14 @@ bool PQTree::TemplateP6(PQNode* candidate_node)
                                                      partial_qnode1);
       } else {
         for (int i = 0; i < 2 && candidate_node->immediate_siblings_[i]; ++i) {
-	  	  PQNode* sibling = candidate_node->immediate_siblings_[i];
+          PQNode* sibling = candidate_node->immediate_siblings_[i];
           sibling->ReplaceImmediateSibling(candidate_node, partial_qnode1);
         }
         candidate_node->parent_->ReplaceEndmostChild(candidate_node,
                                                      partial_qnode1);
       }
-    }
-    else {
+    } else {
+      assert(candidate_node == root_);
       root_ = partial_qnode1;
       partial_qnode1->parent_ = NULL;
 
@@ -542,7 +541,7 @@ bool PQTree::Bubble(set<int> reduction_set) {
         }
       }
       block_count_ -= blocked_siblings.size();
-      blocked_nodes_ -= list_size; 
+      blocked_nodes_ -= list_size;
     } else {
       block_count_ += 1 - blocked_siblings.size();
       blocked_nodes_ += 1;
@@ -618,8 +617,8 @@ bool PQTree::ReduceStep(set<int> reduction_set) {
     // is the root of the pertinent subtree.
     if (candidate_node->pertinent_leaf_count < reduction_set.size()) {
       PQNode* candidate_parent = candidate_node->parent_;
-      candidate_parent->pertinent_leaf_count += 
-	  candidate_node->pertinent_leaf_count;
+      candidate_parent->pertinent_leaf_count +=
+          candidate_node->pertinent_leaf_count;
       candidate_parent->pertinent_child_count--;
       // Push |candidate_parent| onto the queue if it no longer has any
       // pertinent children.

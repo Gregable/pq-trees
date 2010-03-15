@@ -3,7 +3,7 @@
 // This file is part of the PQ Tree library.
 //
 // The PQ Tree library is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by the 
+// it under the terms of the GNU General Public License as published by the
 // Free Software Foundation, either version 3 of the License, or (at your
 // option) any later version.
 //
@@ -12,7 +12,7 @@
 // or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 // for more details.
 //
-// You should have received a copy of the GNU General Public License along 
+// You should have received a copy of the GNU General Public License along
 // with the PQ Tree Library.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <assert.h>
@@ -172,6 +172,14 @@ void PQNode::SwapQ(PQNode *toInsert) {
   }
   ClearImmediateSiblings();
   parent_ = NULL;
+}
+
+PQNode* PQNode::Parent() const {
+  // This shouldn't be required, but somewhere a parent pointer is getting
+  // leaked for an internal Q-Node that shouldn't have a parent pointer.
+  if (immediate_siblings_[0] == NULL || immediate_siblings_[1] == NULL)
+    return parent_;
+  return NULL;
 }
 
 PQNode::PQNode(int value) {
@@ -457,6 +465,23 @@ void PQNode::Print(string *out) const {
     *out += "]";
   }
 }
+
+void PQNode::Identify() const {
+  cout << "Node: " << this;
+  cout << " Parent: " << parent_ << endl;
+  if (type_ == leaf) {
+    cout << "Type: leaf  Value: " << leaf_value_ << endl;
+  } else {
+    string value;
+    Print(&value);
+    if (type_ == pnode)
+      cout << "Type: pnode Value: " << value << endl;
+    if (type_ == qnode)
+      cout << "Type: qnode Value: " << value << endl;
+  }
+}
+
+
 
 /***** QNodeChildrenIterator class *****/
 
