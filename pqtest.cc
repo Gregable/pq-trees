@@ -124,8 +124,7 @@ void TestBed() {
 
 void TestBed2() {
   set<int> S;
-  for (int i = 0; i < 7; i++)
-    //if (i != 5)
+  for (int i = 0; i < 6; i++)
     S.insert(i);
   PQTree tree(S);
 
@@ -138,20 +137,20 @@ void TestBed2() {
   S.insert(3);
   S.insert(0);
   S.insert(2);
-  S.insert(6);
+  S.insert(5);
   S.insert(4);
   ReduceBy(S, &tree);
 
   S.clear();
   S.insert(0);
   S.insert(2);
-  S.insert(6);
+  S.insert(5);
   S.insert(4);
   ReduceBy(S, &tree);
 
   S.clear();
   S.insert(2);
-  S.insert(6);
+  S.insert(5);
   ReduceBy(S, &tree);
 
   S.clear();
