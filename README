@@ -4,9 +4,6 @@ Kellog S. Booth, George S. Lueker, Testing for the consecutive ones property,
 interval graphs, and graph planarity using PQ-tree algorithms, Journal of
 Computer and Systems Sciences, 13(3) (1976) 335-379.
 
-IMPORTANT NOTE: This code currently has a bug that was introduced while cleaning up the implementation.  A correct (but harder to use) version of this code can be found as a library within BiVoC: https://bioinformatics.cs.vt.edu/~murali/papers/bivoc/
-
-
 Description of files:
 The main file for this library is pqtree.h.  It contains an API that can be
 used by client code for dealing with PQ-Trees.  There are two binaries:
