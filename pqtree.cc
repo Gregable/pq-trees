@@ -40,21 +40,16 @@ void PQTree::CopyFrom(const PQTree& to_copy) {
   root_->FindLeaves(leaf_address_);
 }
 
-int PQTree::UnblockSiblings(PQNode* candidate_node,
-                            PQNode* parent,
-                            PQNode* last) {
+int PQTree::UnblockSiblings(PQNode* candidate_node) {
+  assert (candidate_node->mark_ == PQNode::unblocked);
   int unblocked_count = 0;
-  if (candidate_node->mark_ == PQNode::blocked) {
-    // Unblock the current sibling and set it's parent to |parent|.
-    unblocked_count++;
-    candidate_node->mark_ = PQNode::unblocked;
-    candidate_node->parent_ = parent;
-
-    // Unblock adjacent siblings recursively
-    for (int i = 0; i < 2 && candidate_node->immediate_siblings_[i]; ++i) {
-      PQNode *sibling = candidate_node->immediate_siblings_[i];
-      if (sibling != last)
-        unblocked_count += UnblockSiblings(sibling, parent, candidate_node);
+  for (int i = 0; i < 2 && candidate_node->immediate_siblings_[i]; ++i) {
+    PQNode* sibling = candidate_node->immediate_siblings_[i];
+    if (sibling->mark_ == PQNode::blocked) {
+      sibling->parent_ = candidate_node->parent_;
+      sibling->mark_ = PQNode::unblocked;
+      unblocked_count++;
+      unblocked_count += UnblockSiblings(sibling);
     }
   }
   return unblocked_count;
@@ -458,7 +453,6 @@ bool PQTree::TemplateP6(PQNode* candidate_node) {
                                                      partial_qnode1);
       }
     } else {
-      assert(candidate_node == root_);
       root_ = partial_qnode1;
       partial_qnode1->parent_ = NULL;
 
@@ -472,15 +466,14 @@ bool PQTree::TemplateP6(PQNode* candidate_node) {
 
 // This procedure is the first pass of the Booth & Leuker PQTree algorithm.
 // It processes the pertinent subtree of the PQ-Tree to determine the mark
-// of every node in that subtree.  The pseudonode, if created, is returned so
-// that it can be deleted at the end of the reduce step.
+// of every node in that subtree.
 bool PQTree::Bubble(set<int> reduction_set) {
   queue<PQNode*> q;
   block_count_ = 0;
   blocked_nodes_ = 0;
   off_the_top_ = 0;
 
-  // Stores nodes that aren't unblocked
+  // Stores blocked nodes
   set<PQNode*> blocked_list;
 
   // Insert the set's leaves into the queue
@@ -524,11 +517,10 @@ bool PQTree::Bubble(set<int> reduction_set) {
 
     // If |candidate_node| is unblocked, we can process it.
     if (candidate_node->mark_ == PQNode::unblocked) {
-      int list_size = 0;
       if (!blocked_siblings.empty()) {
-        candidate_node->mark_ = PQNode::blocked;
-        list_size = UnblockSiblings(candidate_node, candidate_node->parent_);
-        candidate_node->parent_->pertinent_child_count += list_size - 1;
+        int list_size = UnblockSiblings(candidate_node);
+        candidate_node->parent_->pertinent_child_count += list_size;
+        blocked_nodes_ -= list_size;
       }
 
       if (!candidate_node->parent_) {
@@ -541,7 +533,6 @@ bool PQTree::Bubble(set<int> reduction_set) {
         }
       }
       block_count_ -= blocked_siblings.size();
-      blocked_nodes_ -= list_size;
     } else {
       block_count_ += 1 - blocked_siblings.size();
       blocked_nodes_ += 1;
@@ -552,16 +543,9 @@ bool PQTree::Bubble(set<int> reduction_set) {
   if (block_count_ > 1 || (off_the_top_ == 1 && block_count_ != 0))
     return false;
 
-  int correct_blocked_count = 0;
-  for (set<PQNode*>::iterator blocked_node = blocked_list.begin();
-      blocked_node != blocked_list.end(); ++blocked_node) {
-      if ((*blocked_node)->mark_ == PQNode::blocked)
-        correct_blocked_count++;
-  }
-
   // In this case, we have a block that is contained within a Q-node.  We must
   // assign a psuedonode to handle it.
-  if (block_count_ == 1 && correct_blocked_count > 1) {
+  if (block_count_ == 1 && blocked_nodes_ > 1) {
     pseudonode_ = new PQNode;
     pseudonode_->type_ = PQNode::qnode;
     pseudonode_->pseudonode_ = true;
@@ -572,26 +556,24 @@ bool PQTree::Bubble(set<int> reduction_set) {
     for (set<PQNode*>::iterator i = blocked_list.begin();
         i != blocked_list.end(); ++i) {
       PQNode* blocked = *i;
-      if (blocked->mark_ == PQNode::blocked) {
+      if (blocked->mark_ == PQNode::blocked) {  // may have become unblocked
         pseudonode_->pertinent_child_count++;
         pseudonode_->pertinent_leaf_count += blocked->pertinent_leaf_count;
-        int count = 0;  // count number of immediate siblings.
-        for (int j = 0; j < 2 && blocked->immediate_siblings_[j]; ++j) {
+        for (int j = 0; j < 2; ++j) {
           PQNode* sibling = blocked->immediate_siblings_[j];
-          if (sibling->mark_ == PQNode::blocked) {
-            ++count;
-          } else {
+          if (sibling->mark_ == PQNode::unmarked) {
             blocked->RemoveImmediateSibling(sibling);
             sibling->RemoveImmediateSibling(blocked);
             pseudonode_->pseudo_neighbors_[side] = sibling;
+            pseudonode_->endmost_children_[side++] = blocked;
+            break;
           }
         }
         blocked->parent_ = pseudonode_;
         blocked->pseudochild_ = true;
-        if (count < 2)
-          pseudonode_->endmost_children_[side++] = blocked;
       }
     }
+    q.push(pseudonode_);
   }
   return true;
 }
@@ -658,14 +640,23 @@ bool PQTree::ReduceStep(set<int> reduction_set) {
 
 void PQTree::CleanPseudo() {
   if (pseudonode_) {
+    // The parents of these nodes should be ignored in the next round, but
+    // pointers to the pseudonode which has been deleted make me nervous, so
+    // null them all out.
+    PQNode *last    = NULL;
+    PQNode *current = pseudonode_->endmost_children_[0];
+    while (current) {
+      current->parent_ = NULL;
+      PQNode *next = current->QNextChild(last);
+      last    = current;
+      current = next;
+    }
+
     for (int i = 0; i < 2; i++) {
       pseudonode_->endmost_children_[i]->AddImmediateSibling(
           pseudonode_->pseudo_neighbors_[i]);
       pseudonode_->pseudo_neighbors_[i]->AddImmediateSibling(
           pseudonode_->endmost_children_[i]);
-    }
-    for (int i = 0; i < 2; ++i) {
-      pseudonode_->endmost_children_[i]->parent_ = NULL;
     }
 
     pseudonode_->ForgetChildren();
@@ -757,11 +748,6 @@ bool PQTree::Reduce(set<int> reduction_set) {
   if (!ReduceStep(reduction_set)) {
     invalid_ = true;
     return false;
-  }
-
-  if (pseudonode_) {
-    pseudonode_->ForgetChildren();
-    delete pseudonode_;
   }
 
   // Reset all the temporary variables for the next round.

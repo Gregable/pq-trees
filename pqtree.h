@@ -72,10 +72,10 @@ class PQTree {
   // Loops through the consecutive blocked siblings of an unblocked node
   // recursively unblocking the siblings.
   // Args:
-  //   sibling: next sibling node to unblock
+  //   sibling: next sibling node to unblock (if already unblocked, this call
+  //            is a no-op).
   //   parent: Node to set as the parent of all unblocked siblings
-  //   last: the last node that was unblocked (used in the recursion)
-  int UnblockSiblings(PQNode* sibling, PQNode* parent, PQNode* last=NULL);
+  int UnblockSiblings(PQNode* sibling);
 
   // All of the templates for matching a reduce are below.  The template has a
   // letter describing which type of node it refers to and a number indicating
