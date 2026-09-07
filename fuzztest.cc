@@ -1,78 +1,257 @@
-// PQ-Tree fuzz test.  We basically repeatedly create a random sequence of
-// integers, choose random consecutive subseries out of the original series as
-// a reduction, then apply the reductions to a PQ Tree.  For now, we are just
-// looking to see that the library doesn't crash or return false.
-
-// This file is part of the PQ Tree library.
+// Randomized test for the PQ-tree library.
 //
-// The PQ Tree library is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by the
-// Free Software Foundation, either version 3 of the License, or (at your
-// option) any later version.
+// Three checks are run, each of which must pass:
 //
-// The PQ Tree Library is distributed in the hope that it will be useful, but
-// WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
-// or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
-// for more details.
+// 1. Regression cases: fixed reduction sequences that once broke the library.
 //
-// You should have received a copy of the GNU General Public License along
-// with the PQ Tree Library.  If not, see <http://www.gnu.org/licenses/>.
+// 2. Satisfiable sequences: a hidden permutation is chosen, and every
+//    reduction set is a contiguous slice of it. Every Reduce must succeed, and
+//    after each one the tree's Frontier() must be a permutation of all items
+//    in which every set reduced so far is contiguous. This catches trees that
+//    silently lose or duplicate leaves.
+//
+// 3. Arbitrary sequences on small trees: reduction sets are random subsets,
+//    and Reduce's true/false answer is compared with a brute-force search over
+//    all permutations. This catches both false negatives and false positives.
+//
+// Usage: fuzztest [--iterations N] [--seed S] [--max-leaves L]
+// Exits 0 on success and 1 on the first failure, which is printed.
 
-
+#include <cstdio>
 #include <cstdlib>
-#include <iostream>
+#include <cstring>
+#include <list>
+#include <random>
 #include <set>
+#include <string>
 #include <vector>
+
+#include "permutation_oracle.h"
 #include "pqtree.h"
 
-int ITERATIONS = 10000;  // Number of fuzztest iterations to run.
-int REDUCTIONS = 20;     // Number of reductions to apply on each run
-int TREE_SIZE = 10;      // Size of the PQ-Tree in each fuzztest.
+namespace {
 
-bool fuzztest() {
-  for (int i = 0; i < ITERATIONS; ++i) {
-    // Generate a tree:
-    set<int> items;
-    vector<int> frontier;
-    cout << "new tree: ";
-    for(int j = 0; j < TREE_SIZE; ++j) {
-      items.insert(j);
-      frontier.push_back(j);
+struct Options {
+  int iterations = 2000;
+  unsigned seed = 1;
+  int max_leaves = 42;
+};
+
+const int kMinLeaves = 3;
+const int kMaxBruteForceLeaves = 8;
+const int kBruteForceReductions = 8;
+
+std::string SetToString(const std::set<int>& s) {
+  std::string out = "{";
+  for (std::set<int>::const_iterator i = s.begin(); i != s.end(); ++i) {
+    if (i != s.begin()) out += " ";
+    out += std::to_string(*i);
+  }
+  return out + "}";
+}
+
+std::string ConstraintsToString(const Constraints& constraints) {
+  std::string out;
+  for (size_t i = 0; i < constraints.size(); ++i) {
+    if (i) out += " ";
+    out += SetToString(constraints[i]);
+  }
+  return out;
+}
+
+PQTree MakeTree(int item_count) {
+  std::set<int> items;
+  for (int i = 0; i < item_count; ++i) items.insert(i);
+  return PQTree(items);
+}
+
+Permutation FrontierOf(PQTree* tree) {
+  std::list<int> frontier = tree->Frontier();
+  return Permutation(frontier.begin(), frontier.end());
+}
+
+// Applies every constraint in order; all are expected to be satisfiable.
+// Returns an empty string on success, otherwise a description of the failure.
+std::string CheckSatisfiableSequence(int item_count,
+                                     const Constraints& constraints) {
+  PQTree tree = MakeTree(item_count);
+  Constraints applied;
+  for (size_t i = 0; i < constraints.size(); ++i) {
+    applied.push_back(constraints[i]);
+    if (!tree.Reduce(constraints[i])) {
+      return "Reduce returned false for satisfiable set " +
+             SetToString(constraints[i]) + " after " +
+             ConstraintsToString(applied) + " tree=" + tree.Print();
     }
-    PQTree tree(items);
-
-    // We pick a random ordering of the items.
-    random_shuffle(frontier.begin(), frontier.end());
-    for (int k = 0; k < TREE_SIZE; k++) {
-      cout << frontier[k] << " ";
+    if (!SatisfiesAll(FrontierOf(&tree), item_count, applied)) {
+      return "Frontier violates constraints after " +
+             ConstraintsToString(applied) + " tree=" + tree.Print();
     }
-    cout << "\n";
-    for (int j = 0; j < REDUCTIONS; ++j) {
-      // Then we choose a random starting point in the list and a random length
-      int start = rand() % (TREE_SIZE - 2);
-      int size = min(rand() % 10 + 2, TREE_SIZE - start);
+  }
+  return "";
+}
 
-      set<int> reduction;
-      for (int k = start; k < start + size; ++k) {
-        reduction.insert(frontier[k]);
-        cout << frontier[k] << " ";
-      }
-      cout << endl;
-      if (!tree.Reduce(reduction)) {
+// A 39-leaf case where TemplateP6 mistook an interior Q-node child for the
+// tree root and replaced the root, dropping 17 leaves while Reduce still
+// returned true.
+std::string RegressionP6InteriorQChild() {
+  const int kItems = 39;
+  const int raw[][40] = {
+      {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 16, 17, 18, 19, 20, 21,
+       23, 25, 26, 28, 29, 31, 32, 33, 34, 36, 37, 38, -1},
+      {5, 7, 10, 11, 25, 26, 31, 37, -1},
+      {1, 3, 12, 13, 17, 20, 22, 24, 27, 28, 29, 30, 34, 35, -1},
+      {0, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 16, 17, 18, 19, 20, 21,
+       23, 25, 26, 28, 29, 31, 32, 33, 34, 36, 37, 38, -1},
+      {0, 4, 6, 9, 14, 15, 18, 19, 21, 32, 33, 36, 38, -1},
+      {0, 1, 3, 4, 5, 6, 7, 9, 10, 11, 14, 15, 16, 18, 19, 21, 25, 26, 28, 29,
+       31, 32, 33, 34, 36, 37, 38, -1},
+      {5, 7, 10, 11, 16, 21, 25, 31, 37, -1},
+  };
+  Constraints constraints;
+  for (size_t i = 0; i < sizeof(raw) / sizeof(raw[0]); ++i) {
+    std::set<int> s;
+    for (int j = 0; raw[i][j] >= 0; ++j) s.insert(raw[i][j]);
+    constraints.push_back(s);
+  }
+  return CheckSatisfiableSequence(kItems, constraints);
+}
+
+bool RunRegressions() {
+  struct Case {
+    const char* name;
+    std::string (*run)();
+  };
+  const Case cases[] = {
+      {"P6 interior Q-child", RegressionP6InteriorQChild},
+  };
+  for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i) {
+    std::string failure = cases[i].run();
+    if (!failure.empty()) {
+      printf("REGRESSION FAILED [%s]: %s\n", cases[i].name, failure.c_str());
+      return false;
+    }
+  }
+  printf("regressions: %zu passed\n", sizeof(cases) / sizeof(cases[0]));
+  return true;
+}
+
+// Check 2: every reduction is a contiguous slice of a hidden permutation.
+bool RunSatisfiableSequences(const Options& options, std::mt19937* rng) {
+  long reductions = 0;
+  for (int it = 0; it < options.iterations; ++it) {
+    std::uniform_int_distribution<int> leaf_dist(kMinLeaves, options.max_leaves);
+    const int item_count = leaf_dist(*rng);
+    Permutation hidden(item_count);
+    for (int i = 0; i < item_count; ++i) hidden[i] = i;
+    std::shuffle(hidden.begin(), hidden.end(), *rng);
+
+    Constraints constraints;
+    std::uniform_int_distribution<int> count_dist(1, 60);
+    const int count = count_dist(*rng);
+    for (int r = 0; r < count; ++r) {
+      std::uniform_int_distribution<int> start_dist(0, item_count - 2);
+      const int start = start_dist(*rng);
+      std::uniform_int_distribution<int> len_dist(2, item_count - start);
+      const int len = len_dist(*rng);
+      constraints.push_back(
+          std::set<int>(hidden.begin() + start, hidden.begin() + start + len));
+    }
+    reductions += constraints.size();
+
+    std::string failure = CheckSatisfiableSequence(item_count, constraints);
+    if (!failure.empty()) {
+      printf("SATISFIABLE FAILED seed=%u iteration=%d leaves=%d: %s\n",
+             options.seed, it, item_count, failure.c_str());
+      return false;
+    }
+  }
+  printf("satisfiable sequences: %d trees, %ld reductions passed\n",
+         options.iterations, reductions);
+  return true;
+}
+
+std::set<int> RandomSubset(int item_count, int min_size, std::mt19937* rng) {
+  std::uniform_int_distribution<int> size_dist(min_size, item_count);
+  const int size = size_dist(*rng);
+  std::uniform_int_distribution<int> item_dist(0, item_count - 1);
+  std::set<int> subset;
+  while (static_cast<int>(subset.size()) < size) subset.insert(item_dist(*rng));
+  return subset;
+}
+
+// Check 3: random subsets on small trees, answers compared with brute force.
+bool RunBruteForceComparison(const Options& options, std::mt19937* rng) {
+  const int max_leaves = std::min(options.max_leaves, kMaxBruteForceLeaves);
+  long reductions = 0;
+  for (int it = 0; it < options.iterations; ++it) {
+    std::uniform_int_distribution<int> leaf_dist(kMinLeaves, max_leaves);
+    const int item_count = leaf_dist(*rng);
+    PQTree tree = MakeTree(item_count);
+    Constraints constraints;
+    for (int r = 0; r < kBruteForceReductions; ++r) {
+      constraints.push_back(RandomSubset(item_count, 2, rng));
+      ++reductions;
+      const bool expected = AnyPermutationSatisfies(item_count, constraints);
+      const bool actual = tree.Reduce(constraints.back());
+      if (actual != expected) {
+        printf("BRUTE FORCE FAILED seed=%u iteration=%d leaves=%d: "
+               "expected=%d actual=%d after %s tree=%s\n",
+               options.seed, it, item_count, expected, actual,
+               ConstraintsToString(constraints).c_str(), tree.Print().c_str());
         return false;
       }
-      cout << tree.Print() << endl;
+      // A failed Reduce leaves the tree invalid by contract, so stop here.
+      if (!actual) break;
+      if (!SatisfiesAll(FrontierOf(&tree), item_count, constraints)) {
+        printf("BRUTE FORCE FAILED seed=%u iteration=%d leaves=%d: frontier "
+               "violates %s tree=%s\n",
+               options.seed, it, item_count,
+               ConstraintsToString(constraints).c_str(), tree.Print().c_str());
+        return false;
+      }
     }
+  }
+  printf("brute force comparison: %d trees, %ld reductions passed\n",
+         options.iterations, reductions);
+  return true;
+}
+
+bool ParseOptions(int argc, char** argv, Options* options) {
+  for (int i = 1; i < argc; ++i) {
+    const bool has_value = i + 1 < argc;
+    if (!strcmp(argv[i], "--iterations") && has_value) {
+      options->iterations = atoi(argv[++i]);
+    } else if (!strcmp(argv[i], "--seed") && has_value) {
+      options->seed = static_cast<unsigned>(atol(argv[++i]));
+    } else if (!strcmp(argv[i], "--max-leaves") && has_value) {
+      options->max_leaves = atoi(argv[++i]);
+    } else {
+      fprintf(stderr,
+              "usage: %s [--iterations N] [--seed S] [--max-leaves L]\n",
+              argv[0]);
+      return false;
+    }
+  }
+  if (options->iterations < 0 || options->max_leaves < kMinLeaves) {
+    fprintf(stderr, "iterations must be >= 0 and max-leaves >= %d\n",
+            kMinLeaves);
+    return false;
   }
   return true;
 }
 
-// Returns 0 if fuzztest succeeded, 1 if a failure was detected.
-int main(int argc, char **argv)
-{
-  if (!fuzztest()) {
-    cout << "failure\n";
-    return false;
-  }
-  return true;
+}  // namespace
+
+int main(int argc, char** argv) {
+  Options options;
+  if (!ParseOptions(argc, argv, &options)) return 2;
+  printf("fuzztest seed=%u iterations=%d max-leaves=%d\n", options.seed,
+         options.iterations, options.max_leaves);
+  std::mt19937 rng(options.seed);
+  if (!RunRegressions()) return 1;
+  if (!RunSatisfiableSequences(options, &rng)) return 1;
+  if (!RunBruteForceComparison(options, &rng)) return 1;
+  printf("all checks passed\n");
+  return 0;
 }
