@@ -71,10 +71,12 @@ Permutation FrontierOf(PQTree* tree) {
   return Permutation(frontier.begin(), frontier.end());
 }
 
-// Applies every constraint in order; all are expected to be satisfiable.
+// Applies every constraint in order; all are expected to be satisfiable. If
+// |unsatisfiable| is given, it is reduced last and must be rejected.
 // Returns an empty string on success, otherwise a description of the failure.
 std::string CheckSatisfiableSequence(int item_count,
-                                     const Constraints& constraints) {
+                                     const Constraints& constraints,
+                                     const std::set<int>* unsatisfiable) {
   PQTree tree = MakeTree(item_count);
   Constraints applied;
   for (size_t i = 0; i < constraints.size(); ++i) {
@@ -93,6 +95,10 @@ std::string CheckSatisfiableSequence(int item_count,
       return "Invariant broken after " + ConstraintsToString(applied) + ": " +
              broken;
     }
+  }
+  if (unsatisfiable && tree.Reduce(*unsatisfiable)) {
+    return "Reduce accepted unsatisfiable set " + SetToString(*unsatisfiable) +
+           " after " + ConstraintsToString(applied) + " tree=" + tree.Print();
   }
   return "";
 }
@@ -120,7 +126,7 @@ std::string RegressionP6InteriorQChild() {
     for (int j = 0; raw[i][j] >= 0; ++j) s.insert(raw[i][j]);
     constraints.push_back(s);
   }
-  return CheckSatisfiableSequence(kItems, constraints);
+  return CheckSatisfiableSequence(kItems, constraints, NULL);
 }
 
 // A 19-leaf case where TemplateQ2 merged a Q-node into its parent and deleted
@@ -144,7 +150,7 @@ std::string RegressionQ2StaleParentPointer() {
     for (int j = 0; raw[i][j] >= 0; ++j) s.insert(raw[i][j]);
     constraints.push_back(s);
   }
-  return CheckSatisfiableSequence(kItems, constraints);
+  return CheckSatisfiableSequence(kItems, constraints, NULL);
 }
 
 // A 33-leaf case where TemplateQ2, applied at the root of the pertinent
@@ -170,7 +176,7 @@ std::string RegressionQ2AtPertinentRoot() {
     for (int j = 0; raw[i][j] >= 0; ++j) s.insert(raw[i][j]);
     constraints.push_back(s);
   }
-  return CheckSatisfiableSequence(kItems, constraints);
+  return CheckSatisfiableSequence(kItems, constraints, NULL);
 }
 
 bool RunRegressions() {
@@ -215,9 +221,20 @@ bool RunSatisfiableSequences(const Options& options, std::mt19937* rng) {
       constraints.push_back(
           std::set<int>(hidden.begin() + start, hidden.begin() + start + len));
     }
-    reductions += constraints.size();
+    // Finish with a set the tree must reject: after {a b} and {b c} for three
+    // consecutive hidden items, b sits between a and c, so {a c} cannot be
+    // contiguous.
+    std::uniform_int_distribution<int> triple_dist(0, item_count - 3);
+    const int t = triple_dist(*rng);
+    constraints.push_back(std::set<int>(hidden.begin() + t, hidden.begin() + t + 2));
+    constraints.push_back(std::set<int>(hidden.begin() + t + 1, hidden.begin() + t + 3));
+    std::set<int> unsatisfiable;
+    unsatisfiable.insert(hidden[t]);
+    unsatisfiable.insert(hidden[t + 2]);
+    reductions += constraints.size() + 1;
 
-    std::string failure = CheckSatisfiableSequence(item_count, constraints);
+    std::string failure =
+        CheckSatisfiableSequence(item_count, constraints, &unsatisfiable);
     if (!failure.empty()) {
       printf("SATISFIABLE FAILED seed=%u iteration=%d leaves=%d: %s\n",
              options.seed, it, item_count, failure.c_str());
