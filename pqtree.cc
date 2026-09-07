@@ -68,16 +68,16 @@ int PQTree::UnblockSiblings(PQNode* candidate_node) {
 // remainder of the methods should be skipped.  The template ordering is:
 // L1, P1, P2, P3, P4, P5, P6, Q1, Q2, Q3
 
-bool PQTree::TemplateL1(PQNode* candidate_node) {
+bool PQTree::TemplateL1(PQNode* candidate_node, bool is_reduction_root) {
   // L1's pattern is simple: the node is a leaf node.
   if (candidate_node->type_ != PQNode::leaf)
     return false;
 
-  candidate_node->LabelAsFull();
+  candidate_node->LabelAsFull(is_reduction_root);
   return true;
 }
 
-bool PQTree::TemplateQ1(PQNode* candidate_node) {
+bool PQTree::TemplateQ1(PQNode* candidate_node, bool is_reduction_root) {
   // Q1's Pattern is a Q-Node that has only full children.
   if (candidate_node->type_ != PQNode::qnode)
     return false;
@@ -86,7 +86,7 @@ bool PQTree::TemplateQ1(PQNode* candidate_node) {
       return false;
   }
 
-  candidate_node->LabelAsFull();
+  candidate_node->LabelAsFull(is_reduction_root);
   return true;
 }
 
@@ -115,15 +115,14 @@ bool PQTree::TemplateQ2(PQNode* candidate_node, bool is_reduction_root) {
   // If there is a partial child, merge it's children into the candidate_node.
   if (has_partial) {
     PQNode* to_merge = *candidate_node->partial_children_.begin();
+    // |to_merge| is about to be deleted; none of its children may keep a
+    // pointer to it. The ones that become endmost get a new parent below.
+    to_merge->DetachChildren();
     for (int i = 0; i < 2; ++i) {
       PQNode* child = to_merge->endmost_children_[i];
       PQNode* sibling = to_merge->ImmediateSiblingWithLabel(child->label_);
       if (sibling) {
-        // |child| becomes an interior child of |candidate_node|. Interior
-        // Q-children carry no parent pointer, and |to_merge| is about to be
-        // deleted, so clear it rather than leave it dangling.
         sibling->ReplaceImmediateSibling(to_merge, child);
-        child->parent_ = NULL;
       } else {
         candidate_node->ReplaceEndmostChild(to_merge, child);
         child->parent_ = candidate_node;
@@ -137,8 +136,10 @@ bool PQTree::TemplateQ2(PQNode* candidate_node, bool is_reduction_root) {
   // The pertinent root's parent_ is not refreshed by Bubble when the root is
   // an interior Q-child, so it may be stale. Bubble guarantees it for every
   // non-root pertinent node.
-  if (!is_reduction_root)
+  if (!is_reduction_root) {
+    assert(candidate_node->parent_);
     candidate_node->parent_->partial_children_.insert(candidate_node);
+  }
   return true;
 }
 
@@ -156,15 +157,15 @@ bool PQTree::TemplateQ3(PQNode* candidate_node) {
   for (set<PQNode*>::iterator j = candidate_node->partial_children_.begin();
        j != candidate_node->partial_children_.end(); j++) {
     PQNode* to_merge = *j;
+    // See the same step in TemplateQ2.
+    to_merge->DetachChildren();
     for (int i = 0; i < 2; ++i) {
       PQNode* sibling = to_merge->immediate_siblings_[i];
       if (sibling) {
         PQNode* child = to_merge->EndmostChildWithLabel(sibling->label_);
         if (!child)
           child = to_merge->EndmostChildWithLabel(PQNode::full);
-        // |child| becomes an interior child; see the same case in TemplateQ2.
         sibling->ReplaceImmediateSibling(to_merge, child);
-        child->parent_ = NULL;
       } else {
         PQNode* empty_child = to_merge->EndmostChildWithLabel(PQNode::empty);
         empty_child->parent_ = candidate_node;
@@ -410,6 +411,10 @@ bool PQTree::TemplateP6(PQNode* candidate_node) {
   if (!empty_child2 || !full_child2)
     return false;
 
+  // |partial_qnode2|'s children move into |partial_qnode1| and it is deleted
+  // below; only |empty_child2| stays endmost and gets its parent set again.
+  partial_qnode2->DetachChildren();
+
   // Move the full children of candidate_node to be children of partial_qnode1
   if (!candidate_node->full_children_.empty()) {
     PQNode *full_children_root = NULL;
@@ -446,7 +451,7 @@ bool PQTree::TemplateP6(PQNode* candidate_node) {
   if (candidate_node->circular_link_.size() == 1) {
     // Use Parent() rather than the raw parent_ field: |candidate_node| is
     // the pertinent root, and if it is an interior Q-child its parent_ was
-    // never refreshed by Bubble and may be stale.
+    // never refreshed by Bubble and may be NULL or stale.
     PQNode* parent = candidate_node->Parent();
     partial_qnode1->parent_ = parent;
     partial_qnode1->pertinent_leaf_count = candidate_node->pertinent_leaf_count;
@@ -467,7 +472,8 @@ bool PQTree::TemplateP6(PQNode* candidate_node) {
       // A NULL parent pointer does not mean |candidate_node| is the root:
       // interior children of a Q-node deliberately carry no parent pointer.
       // Only replace the root if this really is the root; otherwise splice
-      // |partial_qnode1| in between the siblings, as TemplateP5 does.
+      // |partial_qnode1| in between the siblings, as PQNode::ReplaceChild
+      // does for a Q-node parent.
       partial_qnode1->parent_ = NULL;
       if (root_ == candidate_node) {
         root_ = partial_qnode1;
@@ -478,11 +484,11 @@ bool PQTree::TemplateP6(PQNode* candidate_node) {
             sibling->ReplaceImmediateSibling(candidate_node, partial_qnode1);
         }
       }
-
-      // Delete candidate_node, but not it's children.
-      candidate_node->circular_link_.clear();
-      delete candidate_node;
     }
+
+    // Delete candidate_node, but not its children.
+    candidate_node->circular_link_.clear();
+    delete candidate_node;
   }
   return true;
 }
@@ -631,11 +637,11 @@ bool PQTree::ReduceStep(set<int> reduction_set) {
         q.push(candidate_parent);
 
       // Test against each template in turn until one of them returns true.
-      if      (TemplateL1(candidate_node)) {}
+      if      (TemplateL1(candidate_node, /*is_reduction_root=*/ false)) {}
       else if (TemplateP1(candidate_node, /*is_reduction_root=*/ false)) {}
       else if (TemplateP3(candidate_node)) {}
       else if (TemplateP5(candidate_node)) {}
-      else if (TemplateQ1(candidate_node)) {}
+      else if (TemplateQ1(candidate_node, /*is_reduction_root=*/ false)) {}
       else if (TemplateQ2(candidate_node, /*is_reduction_root=*/ false)) {}
       else {
         CleanPseudo();
@@ -643,12 +649,12 @@ bool PQTree::ReduceStep(set<int> reduction_set) {
       }
     } else {  // candidate_node is the root of the reduction subtree
       // Test against each template in turn until one of them returns true.
-      if      (TemplateL1(candidate_node)) {}
+      if      (TemplateL1(candidate_node, /*is_reduction_root=*/ true)) {}
       else if (TemplateP1(candidate_node, /*is_reduction_root=*/ true)) {}
       else if (TemplateP2(candidate_node)) {}
       else if (TemplateP4(candidate_node)) {}
       else if (TemplateP6(candidate_node)) {}
-      else if (TemplateQ1(candidate_node)) {}
+      else if (TemplateQ1(candidate_node, /*is_reduction_root=*/ true)) {}
       else if (TemplateQ2(candidate_node, /*is_reduction_root=*/ true)) {}
       else if (TemplateQ3(candidate_node)) {}
       else {

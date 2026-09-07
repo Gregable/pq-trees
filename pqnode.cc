@@ -125,9 +125,9 @@ PQNode& PQNode::operator=(const PQNode& to_copy) {
   return *this;
 }
 
-void PQNode::LabelAsFull() {
+void PQNode::LabelAsFull(bool is_reduction_root) {
   label_ = full;
-  if (parent_)
+  if (!is_reduction_root)
     parent_->full_children_.insert(this);
 }
 
@@ -153,11 +153,11 @@ void PQNode::ReplaceChild(PQNode* old_child, PQNode* new_child) {
     }
     ReplaceEndmostChild(old_child, new_child);
   }
-  new_child->parent_ = old_child->parent_;
+  new_child->parent_ = this;
   if (new_child->label_ == partial)
-    new_child->parent_->partial_children_.insert(new_child);
+    partial_children_.insert(new_child);
   if (new_child->label_ == full)
-    new_child->parent_->full_children_.insert(new_child);
+    full_children_.insert(new_child);
 }
 
 // Removes this node from a q-parent and puts toInsert in it's place
@@ -175,8 +175,11 @@ void PQNode::SwapQ(PQNode *toInsert) {
 }
 
 PQNode* PQNode::Parent() const {
-  // This shouldn't be required, but somewhere a parent pointer is getting
-  // leaked for an internal Q-Node that shouldn't have a parent pointer.
+  // Only endmost Q-children and P-children keep a reliable parent pointer.
+  // An interior Q-child's parent_ is set by Bubble while it is pertinent and
+  // may be NULL or point at its real parent afterwards, so it is never
+  // reported here. Callers that need the parent of an interior child must
+  // reach it through an endmost sibling.
   if (immediate_siblings_[0] == NULL || immediate_siblings_[1] == NULL)
     return parent_;
   return NULL;
@@ -292,9 +295,17 @@ void PQNode::ReplaceEndmostChild(PQNode* old_child, PQNode* new_child) {
   for (int i = 0; i < 2; ++i) {
     if (endmost_children_[i] == old_child) {
       endmost_children_[i] = new_child;
+      // |old_child| is now either interior or detached from this node, and
+      // interior Q-children must not keep a parent pointer.
+      old_child->parent_ = NULL;
       return;
     }
   }
+}
+
+void PQNode::DetachChildren() {
+  for (QNodeChildrenIterator it(this); !it.IsDone(); it.Next())
+    it.Current()->parent_ = NULL;
 }
 
 void PQNode::ReplaceImmediateSibling(PQNode* old_child, PQNode* new_child) {
