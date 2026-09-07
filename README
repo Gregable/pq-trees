@@ -9,27 +9,25 @@ IMPORTANT NOTE: This code currently is known to be buggy on some rare inputs.  A
 Description of files:
 The main file for this library is pqtree.h.  It contains an API that can be
 used by client code for dealing with PQ-Trees.  There are two binaries:
-fuzztest and pqtest.
+pqtest and fuzztest.
 
-pqtest runs the pqtree code for one example set of reductions on a single tree, printing the state of the tree at every step.  This illustrates how the pqtree is built.
+pqtest runs the pqtree code for one example set of reductions on a single tree,
+printing the state of the tree at every step.  This illustrates how the pqtree
+is built.
 
-fuzztest generates a large random set of possible reductions and runs them
-against the library making sure that it never returns false or segfaults.
+fuzztest generates random reduction sequences and checks the library against
+two independent oracles.  See the comment at the top of fuzztest.cc.
 
-Usage:
-Primarily, this is intended to be used as a library, not a binary.  But you can
-still compile and run the binaries |pqtest| and |fuzztest|.  My personal
-recommendation would be to compile with scons, http://scons.org/.  To do so,
-run:
+Building:
+The build uses CMake (3.16 or newer) and produces a static library, pqtree,
+plus the two test binaries:
 
-$ scons
-$ ./fuzztest
-$ ./pqtest
+$ cmake -B build
+$ cmake --build build
+$ ctest --test-dir build
 
-Alternatively, I also handily include the tried and true MakeFile, so if you
-don't have scons on your system and don't feel like installing it, instead just
-run:
+To build with AddressSanitizer and UndefinedBehaviorSanitizer enabled:
 
-$ make
-$ ./fuzztest
-$ ./pqtest
+$ cmake -B build-asan -DPQTREES_SANITIZE=ON
+$ cmake --build build-asan
+$ ctest --test-dir build-asan
