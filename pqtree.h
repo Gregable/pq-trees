@@ -84,7 +84,7 @@ class PQTree {
   // pattern accurately matches the template
   bool TemplateL1(PQNode* candidate_node);
   bool TemplateQ1(PQNode* candidate_node);
-  bool TemplateQ2(PQNode* candidate_node);
+  bool TemplateQ2(PQNode* candidate_node, bool is_reduction_root);
   bool TemplateQ3(PQNode* candidate_node);
   bool TemplateP1(PQNode* candidate_node, bool is_reduction_root);
   bool TemplateP2(PQNode* candidate_node);

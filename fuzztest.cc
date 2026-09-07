@@ -117,6 +117,55 @@ std::string RegressionP6InteriorQChild() {
   return CheckSatisfiableSequence(kItems, constraints);
 }
 
+// A 19-leaf case where TemplateQ2 merged a Q-node into its parent and deleted
+// it, leaving a child that became an interior Q-child still pointing at the
+// deleted node as its parent. TemplateP6 later read that dangling pointer and
+// linked new nodes into freed memory, duplicating subtrees.
+std::string RegressionQ2StaleParentPointer() {
+  const int kItems = 19;
+  const int raw[][20] = {
+      {0, 2, 3, 4, 6, 7, 8, 9, 10, 11, 12, 14, 15, 16, 17, 18, -1},
+      {0, 16, -1},
+      {3, 8, 9, 11, 12, 14, -1},
+      {10, 13, -1},
+      {1, 4, 5, 7, 15, 18, -1},
+      {2, 3, 6, 8, 9, 14, 16, 17, -1},
+  };
+  Constraints constraints;
+  for (size_t i = 0; i < sizeof(raw) / sizeof(raw[0]); ++i) {
+    std::set<int> s;
+    for (int j = 0; raw[i][j] >= 0; ++j) s.insert(raw[i][j]);
+    constraints.push_back(s);
+  }
+  return CheckSatisfiableSequence(kItems, constraints);
+}
+
+// A 33-leaf case where TemplateQ2, applied at the root of the pertinent
+// subtree, inserted the root into the partial_children_ set of its stale
+// parent pointer, which pointed at a Q-node TemplateQ3 had already deleted.
+std::string RegressionQ2AtPertinentRoot() {
+  const int kItems = 33;
+  const int raw[][34] = {
+      {0, 1, 2, 3, 4, 5, 6, 8, 9, 11, 12, 15, 16, 17, 18, 19, 20, 21, 22, 24,
+       27, 29, 30, 31, 32, -1},
+      {7, 10, 25, 26, 28, -1},
+      {26, 28, -1},
+      {10, 25, 26, -1},
+      {3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 19, 21, 22, 23, 24, 25,
+       26, 27, 28, 29, 30, -1},
+      {3, 5, 6, 8, 9, 10, 11, 13, 14, 15, 16, 17, 19, 21, 22, 23, 24, 25, 26,
+       27, 28, 29, 30, -1},
+      {26, 28, -1},
+  };
+  Constraints constraints;
+  for (size_t i = 0; i < sizeof(raw) / sizeof(raw[0]); ++i) {
+    std::set<int> s;
+    for (int j = 0; raw[i][j] >= 0; ++j) s.insert(raw[i][j]);
+    constraints.push_back(s);
+  }
+  return CheckSatisfiableSequence(kItems, constraints);
+}
+
 bool RunRegressions() {
   struct Case {
     const char* name;
@@ -124,6 +173,8 @@ bool RunRegressions() {
   };
   const Case cases[] = {
       {"P6 interior Q-child", RegressionP6InteriorQChild},
+      {"Q2 stale parent pointer", RegressionQ2StaleParentPointer},
+      {"Q2 at pertinent root", RegressionQ2AtPertinentRoot},
   };
   for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i) {
     std::string failure = cases[i].run();
