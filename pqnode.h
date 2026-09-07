@@ -96,8 +96,15 @@ class PQNode {
   // Returns the number of immediate siblings this node has (0, 1, or 2).
   int ImmediateSiblingCount() const;
 
-  // Replaces the |endmost_children_| pointer to |old_child| with |new_child|.
+  // Replaces the |endmost_children_| pointer to |old_child| with |new_child|
+  // and clears |old_child|'s parent pointer, since it is no longer endmost.
   void ReplaceEndmostChild(PQNode* old_child, PQNode* new_child);
+
+  // Clears the parent pointer of every child of this Q-node. Called before
+  // the children are merged into another Q-node and this node is deleted, so
+  // that no child keeps a pointer to freed memory. The caller sets the parent
+  // pointer again on the children that become endmost elsewhere.
+  void DetachChildren();
 
   // Replaces the immediate sibling of |old_child| with |new_child|.
   void ReplaceImmediateSibling(PQNode* old_child, PQNode* new_child);
@@ -188,7 +195,10 @@ class PQNode {
   ~PQNode();
 
   // Label's this node as full, updating the parent if needed.
-  void LabelAsFull();
+  // Labels this node full. Unless |is_reduction_root|, also records it in the
+  // parent's full_children_; the pertinent root's parent pointer may be stale
+  // so it is never touched.
+  void LabelAsFull(bool is_reduction_root);
 
   // Walks the tree to build a map from values to leaf pointers.
   void FindLeaves(map<int, PQNode*> &leafAddress);

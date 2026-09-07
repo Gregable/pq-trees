@@ -82,9 +82,9 @@ class PQTree {
   // the index of the template for that letter.  These are the same indices in
   // the Booth & Lueker paper.  The return value indicates whether or not the
   // pattern accurately matches the template
-  bool TemplateL1(PQNode* candidate_node);
-  bool TemplateQ1(PQNode* candidate_node);
-  bool TemplateQ2(PQNode* candidate_node);
+  bool TemplateL1(PQNode* candidate_node, bool is_reduction_root);
+  bool TemplateQ1(PQNode* candidate_node, bool is_reduction_root);
+  bool TemplateQ2(PQNode* candidate_node, bool is_reduction_root);
   bool TemplateQ3(PQNode* candidate_node);
   bool TemplateP1(PQNode* candidate_node, bool is_reduction_root);
   bool TemplateP2(PQNode* candidate_node);
@@ -102,6 +102,10 @@ class PQTree {
 
   bool ReduceStep(set<int> S);
 
+  // Helper for CheckInvariants; nested so it shares PQTree's access to
+  // PQNode internals. Defined in pqtree_invariants.cc.
+  struct InvariantWalker;
+
  public:
   // Default constructor - constructs a tree using a set
   // Only reductions using elements of that set will succeed
@@ -114,6 +118,12 @@ class PQTree {
 
   // Mostly for debugging purposes, Prints the tree to standard out
   string Print() const;
+
+  // Walks the whole tree and checks its structural invariants: parent
+  // pointers, sibling links, child lists and the leaf index. Returns true if
+  // every check passes, otherwise false with a description in |failure|.
+  // Intended for tests; costs a full traversal.
+  bool CheckInvariants(string* failure) const;
 
   // Cleans up pointer mess caused by having a pseudonode
   void CleanPseudo();

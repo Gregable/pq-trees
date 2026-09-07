@@ -36,7 +36,11 @@ void ReduceBy(const set<int>& reduce_set, PQTree* tree) {
     cout << *i << " ";
   cout << "}" << endl;
 
-  assert (tree->Reduce(reduce_set));
+  // Keep the Reduce call outside of assert so it is not compiled away when
+  // NDEBUG is defined.
+  const bool reduced = tree->Reduce(reduce_set);
+  assert(reduced);
+  (void)reduced;
   cout << tree->Print() << endl;
 }
 
