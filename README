@@ -4,14 +4,13 @@ Kellog S. Booth, George S. Lueker, Testing for the consecutive ones property,
 interval graphs, and graph planarity using PQ-tree algorithms, Journal of
 Computer and Systems Sciences, 13(3) (1976) 335-379.
 
-NOTE: For many years this code was known to be buggy on rare inputs. In 2026
-three bugs were found with an oracle-checked fuzz test and fixed: two in
-TemplateP6 and TemplateQ2 that read stale parent pointers at the root of the
-pertinent subtree, and one where merging a Q-node left its former children
-pointing at the deleted node. Each fix carries a fixed regression case in
-fuzztest.cc, and the tree's structural invariants are now checked after every
-reduction in the fuzz test (see PQTree::CheckInvariants). All tests pass
-under AddressSanitizer, UndefinedBehaviorSanitizer and LeakSanitizer.
+Testing:
+The library is checked by a randomized fuzz test against two independent
+oracles (brute-force permutation search on small trees, and a hidden
+permutation on large ones), by a structural invariant walk after every
+reduction (PQTree::CheckInvariants), and by a deterministic API test. All
+tests pass under AddressSanitizer, UndefinedBehaviorSanitizer and
+LeakSanitizer. See the Building section below for how to run them.
 
 An independent implementation can be found as a library within BiVoC:
 https://bioinformatics.cs.vt.edu/~murali/papers/bivoc/
