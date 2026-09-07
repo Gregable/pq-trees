@@ -10,22 +10,23 @@ TemplateP6 and TemplateQ2 that read stale parent pointers at the root of the
 pertinent subtree, and one where merging a Q-node left its former children
 pointing at the deleted node. Each fix carries a fixed regression case in
 fuzztest.cc, and the tree's structural invariants are now checked after every
-reduction in the fuzz test (see PQTree::CheckInvariants). The fuzz test passes
-under AddressSanitizer and UndefinedBehaviorSanitizer with leak detection
-disabled: the library still leaks a small number of nodes on some paths
-(TemplateP2 and TemplateP5), which is a known open issue.
+reduction in the fuzz test (see PQTree::CheckInvariants). All tests pass
+under AddressSanitizer, UndefinedBehaviorSanitizer and LeakSanitizer.
 
 An independent implementation can be found as a library within BiVoC:
 https://bioinformatics.cs.vt.edu/~murali/papers/bivoc/
 
 Description of files:
 The main file for this library is pqtree.h.  It contains an API that can be
-used by client code for dealing with PQ-Trees.  There are two binaries:
-pqtest and fuzztest.
+used by client code for dealing with PQ-Trees.  There are three binaries:
+pqtest, apitest and fuzztest.
 
 pqtest runs the pqtree code for one example set of reductions on a single tree,
 printing the state of the tree at every step.  This illustrates how the pqtree
 is built.
+
+apitest is a deterministic test of the rest of the API: copying, assignment,
+SafeReduce, ReduceAll, SafeReduceAll and the accessors.
 
 fuzztest generates random reduction sequences and checks the library against
 two independent oracles.  See the comment at the top of fuzztest.cc.

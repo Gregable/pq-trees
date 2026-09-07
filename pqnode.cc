@@ -112,7 +112,7 @@ void PQNode::Copy(const PQNode& to_copy) {
     }
 
     // Now set our last endmost_children_ pointer to our last child
-    endmost_children_[1] = current;
+    endmost_children_[1] = last;
   }
 }
 

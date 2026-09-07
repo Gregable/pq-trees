@@ -22,8 +22,10 @@ PQTree::PQTree(const PQTree& to_copy) {
 }
 
 PQTree& PQTree::operator=(const PQTree& to_copy) {
-  if (&to_copy != this)
+  if (&to_copy != this) {
+    delete root_;
     CopyFrom(to_copy);
+  }
   return *this;
 }
 
@@ -732,7 +734,9 @@ bool PQTree::SafeReduce(set<int> S) {
   PQTree toCopy(*this);
 
   if (!Reduce(S)) {
-    //reduce failed, so perform a copy
+    // The reduction failed and may have left the tree half rewritten, so
+    // throw it away and restore the backup.
+    delete root_;
     root_ = new PQNode(*toCopy.root_);
     block_count_ = toCopy.block_count_;
     blocked_nodes_ = toCopy.blocked_nodes_;
@@ -749,12 +753,15 @@ bool PQTree::SafeReduceAll(list<set<int> > L) {
   //using a backup copy to enforce safety
   PQTree toCopy(*this);
   if (!ReduceAll(L)) {
-    //reduce failed, so perform a copy
+    // See SafeReduce. Reductions applied before the failing one were
+    // recorded, so restore that list too.
+    delete root_;
     root_ = new PQNode(*toCopy.root_);
     block_count_ = toCopy.block_count_;
     blocked_nodes_ = toCopy.blocked_nodes_;
     off_the_top_ = toCopy.off_the_top_;
     invalid_ = toCopy.invalid_;
+    reductions_ = toCopy.reductions_;
     leaf_address_.clear();
     root_->FindLeaves(leaf_address_);
     return false;
