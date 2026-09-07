@@ -453,8 +453,20 @@ bool PQTree::TemplateP6(PQNode* candidate_node) {
                                                      partial_qnode1);
       }
     } else {
-      root_ = partial_qnode1;
+      // A NULL parent pointer does not mean |candidate_node| is the root:
+      // interior children of a Q-node deliberately carry no parent pointer.
+      // Only replace the root if this really is the root; otherwise splice
+      // |partial_qnode1| in between the siblings, as TemplateP5 does.
       partial_qnode1->parent_ = NULL;
+      if (root_ == candidate_node) {
+        root_ = partial_qnode1;
+      } else {
+        for (int i = 0; i < 2; ++i) {
+          PQNode* sibling = candidate_node->immediate_siblings_[i];
+          if (sibling)
+            sibling->ReplaceImmediateSibling(candidate_node, partial_qnode1);
+        }
+      }
 
       // Delete candidate_node, but not it's children.
       candidate_node->circular_link_.clear();
