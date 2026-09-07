@@ -189,7 +189,8 @@ bool PQTree::TemplateQ3(PQNode* candidate_node) {
 bool PQTree::TemplateP1(PQNode* candidate_node, bool is_reduction_root) {
   // P1's pattern is a P-Node with all full children.
   if (candidate_node->type_ != PQNode::pnode ||
-      candidate_node->full_children_.size() != candidate_node->ChildCount())
+      static_cast<int>(candidate_node->full_children_.size()) !=
+          candidate_node->ChildCount())
     return false;
 
   candidate_node->label_ = PQNode::full;
@@ -628,7 +629,8 @@ bool PQTree::ReduceStep(set<int> reduction_set) {
 
     // We test against different templates depending on whether |candidate_node|
     // is the root of the pertinent subtree.
-    if (candidate_node->pertinent_leaf_count < reduction_set.size()) {
+    if (candidate_node->pertinent_leaf_count <
+        static_cast<int>(reduction_set.size())) {
       PQNode* candidate_parent = candidate_node->parent_;
       candidate_parent->pertinent_leaf_count +=
           candidate_node->pertinent_leaf_count;

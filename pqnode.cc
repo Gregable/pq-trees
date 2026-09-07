@@ -349,11 +349,12 @@ bool PQNode::ConsecutiveFullPartialChildren() {
     for (int i = 0; i < 2 && (*it)->immediate_siblings_[i]; ++i)
       counts[(*it)->immediate_siblings_[i]->label_]++;
   }
-  if (counts[partial] != partial_children_.size())
+  if (counts[partial] != static_cast<int>(partial_children_.size()))
     return false;
   // Depending on how many partials there are, most full children will get
   // counted twice.
-  if (counts[full] != (full_children_.size() * 2) - (2 - counts[partial]))
+  const int full_count = static_cast<int>(full_children_.size());
+  if (counts[full] != (full_count * 2) - (2 - counts[partial]))
     return false;
   return true;
 }
