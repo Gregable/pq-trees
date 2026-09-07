@@ -17,6 +17,7 @@
 // Usage: fuzztest [--iterations N] [--seed S] [--max-leaves L]
 // Exits 0 on success and 1 on the first failure, which is printed.
 
+#include <cerrno>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -87,6 +88,11 @@ std::string CheckSatisfiableSequence(int item_count,
       return "Frontier violates constraints after " +
              ConstraintsToString(applied) + " tree=" + tree.Print();
     }
+    std::string broken;
+    if (!tree.CheckInvariants(&broken)) {
+      return "Invariant broken after " + ConstraintsToString(applied) + ": " +
+             broken;
+    }
   }
   return "";
 }
@@ -120,7 +126,8 @@ std::string RegressionP6InteriorQChild() {
 // A 19-leaf case where TemplateQ2 merged a Q-node into its parent and deleted
 // it, leaving a child that became an interior Q-child still pointing at the
 // deleted node as its parent. TemplateP6 later read that dangling pointer and
-// linked new nodes into freed memory, duplicating subtrees.
+// linked new nodes into freed memory, corrupting the tree (a use-after-free;
+// the visible symptom depends on the allocator).
 std::string RegressionQ2StaleParentPointer() {
   const int kItems = 19;
   const int raw[][20] = {
@@ -261,6 +268,14 @@ bool RunBruteForceComparison(const Options& options, std::mt19937* rng) {
                ConstraintsToString(constraints).c_str(), tree.Print().c_str());
         return false;
       }
+      std::string broken;
+      if (!tree.CheckInvariants(&broken)) {
+        printf("BRUTE FORCE FAILED seed=%u iteration=%d leaves=%d: invariant "
+               "broken after %s: %s\n",
+               options.seed, it, item_count,
+               ConstraintsToString(constraints).c_str(), broken.c_str());
+        return false;
+      }
     }
   }
   printf("brute force comparison: %d trees, %ld reductions passed\n",
@@ -268,15 +283,29 @@ bool RunBruteForceComparison(const Options& options, std::mt19937* rng) {
   return true;
 }
 
+// Parses a whole non-negative decimal integer; rejects anything else.
+bool ParseNonNegative(const char* text, long* value) {
+  char* end = NULL;
+  errno = 0;
+  const long parsed = strtol(text, &end, 10);
+  if (errno != 0 || end == text || *end != '\0' || parsed < 0) return false;
+  *value = parsed;
+  return true;
+}
+
 bool ParseOptions(int argc, char** argv, Options* options) {
   for (int i = 1; i < argc; ++i) {
     const bool has_value = i + 1 < argc;
-    if (!strcmp(argv[i], "--iterations") && has_value) {
-      options->iterations = atoi(argv[++i]);
-    } else if (!strcmp(argv[i], "--seed") && has_value) {
-      options->seed = static_cast<unsigned>(atol(argv[++i]));
-    } else if (!strcmp(argv[i], "--max-leaves") && has_value) {
-      options->max_leaves = atoi(argv[++i]);
+    long value = 0;
+    if (!strcmp(argv[i], "--iterations") && has_value &&
+        ParseNonNegative(argv[++i], &value)) {
+      options->iterations = static_cast<int>(value);
+    } else if (!strcmp(argv[i], "--seed") && has_value &&
+               ParseNonNegative(argv[++i], &value)) {
+      options->seed = static_cast<unsigned>(value);
+    } else if (!strcmp(argv[i], "--max-leaves") && has_value &&
+               ParseNonNegative(argv[++i], &value)) {
+      options->max_leaves = static_cast<int>(value);
     } else {
       fprintf(stderr,
               "usage: %s [--iterations N] [--seed S] [--max-leaves L]\n",

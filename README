@@ -7,10 +7,13 @@ Computer and Systems Sciences, 13(3) (1976) 335-379.
 NOTE: For many years this code was known to be buggy on rare inputs. In 2026
 three bugs were found with an oracle-checked fuzz test and fixed: two in
 TemplateP6 and TemplateQ2 that read stale parent pointers at the root of the
-pertinent subtree, and one in TemplateQ2/TemplateQ3 that left those pointers
-dangling after merging a Q-node. Since then the fuzz test in fuzztest.cc has
-passed under AddressSanitizer on hundreds of thousands of random reductions.
-Each fix carries a fixed regression case in fuzztest.cc.
+pertinent subtree, and one where merging a Q-node left its former children
+pointing at the deleted node. Each fix carries a fixed regression case in
+fuzztest.cc, and the tree's structural invariants are now checked after every
+reduction in the fuzz test (see PQTree::CheckInvariants). The fuzz test passes
+under AddressSanitizer and UndefinedBehaviorSanitizer with leak detection
+disabled: the library still leaks a small number of nodes on some paths
+(TemplateP2 and TemplateP5), which is a known open issue.
 
 An independent implementation can be found as a library within BiVoC:
 https://bioinformatics.cs.vt.edu/~murali/papers/bivoc/
@@ -28,7 +31,7 @@ fuzztest generates random reduction sequences and checks the library against
 two independent oracles.  See the comment at the top of fuzztest.cc.
 
 Building:
-The build uses CMake (3.16 or newer) and produces a static library, pqtree,
+The build uses CMake (3.20 or newer) and produces a static library, pqtree,
 plus the two test binaries:
 
 $ cmake -B build
