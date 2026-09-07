@@ -4,7 +4,16 @@ Kellog S. Booth, George S. Lueker, Testing for the consecutive ones property,
 interval graphs, and graph planarity using PQ-tree algorithms, Journal of
 Computer and Systems Sciences, 13(3) (1976) 335-379.
 
-IMPORTANT NOTE: This code currently is known to be buggy on some rare inputs.  A believed to be correct, but harder to use version of this code can be found as a library within BiVoC: https://bioinformatics.cs.vt.edu/~murali/papers/bivoc/
+NOTE: For many years this code was known to be buggy on rare inputs. In 2026
+three bugs were found with an oracle-checked fuzz test and fixed: two in
+TemplateP6 and TemplateQ2 that read stale parent pointers at the root of the
+pertinent subtree, and one in TemplateQ2/TemplateQ3 that left those pointers
+dangling after merging a Q-node. Since then the fuzz test in fuzztest.cc has
+passed under AddressSanitizer on hundreds of thousands of random reductions.
+Each fix carries a fixed regression case in fuzztest.cc.
+
+An independent implementation can be found as a library within BiVoC:
+https://bioinformatics.cs.vt.edu/~murali/papers/bivoc/
 
 Description of files:
 The main file for this library is pqtree.h.  It contains an API that can be
