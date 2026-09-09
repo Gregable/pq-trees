@@ -96,7 +96,7 @@ void TestBed1() {
   cout << "Root Type: " << ReadableType(root->Type()) << endl;
   vector<PQNode*> children;
   root->Children(&children);
-  for (int i = 0; i < children.size(); ++i) {
+  for (size_t i = 0; i < children.size(); ++i) {
     PQNode* child = children[i];
     cout << "Child " << i + 1 << " Type: " << ReadableType(child->Type());
     if (child->Type() == PQNode::leaf) {
@@ -105,13 +105,14 @@ void TestBed1() {
       cout << endl;
       vector<PQNode*> grandchildren;
       child->Children(&grandchildren);
-      for (int j = 0; j < grandchildren.size(); ++j) {
+      for (size_t j = 0; j < grandchildren.size(); ++j) {
         PQNode* grandchild = grandchildren[j];
         cout << "GrandChild " << j + 1 << " Type: "
              << ReadableType(grandchild->Type());
-        if (grandchild->Type() == PQNode::leaf)
+        if (grandchild->Type() == PQNode::leaf) {
           cout << " Value: " << grandchild->LeafValue();
-          cout << endl;
+        }
+        cout << endl;
       }
     }
   }
@@ -163,7 +164,7 @@ void TestBed2() {
   ReduceBy(S, &tree);
 }
 
-int main(int argc, char **argv) {
+int main() {
   cout << "Test Bed 1:" << endl;
   cout << "-----------------" << endl;
   TestBed1();
